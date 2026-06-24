@@ -1,7 +1,8 @@
 import { Link } from "wouter";
-import { ShoppingCart, Cake, MapPin, Phone, Instagram } from "lucide-react";
+import { ShoppingCart, MapPin, Phone, Instagram } from "lucide-react";
 import { useCart } from "@/contexts/cart";
 import { Badge } from "@/components/ui/badge";
+import logo from "/logo.jpeg";
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
   const { count } = useCart();
@@ -13,12 +14,10 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/cardapio">
             <div className="flex items-center gap-2 cursor-pointer group">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: "#7B2E68" }}>
-                <Cake className="w-5 h-5 text-white" />
-              </div>
+              <img src={logo} alt="Rochele Ataide Confeitaria Artesanal" className="w-10 h-10 rounded-full object-cover" />
               <div>
                 <h1 className="font-serif font-bold text-sm leading-tight" style={{ color: "#7B2E68" }}>
-                  Rochelle Ataidê
+                  Rochele Ataide
                 </h1>
                 <p className="text-xs text-muted-foreground leading-tight">Confeitaria Artesanal</p>
               </div>
@@ -49,7 +48,10 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-pink-100 bg-white mt-16 py-10">
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm text-muted-foreground">
           <div>
-            <h3 className="font-semibold mb-2" style={{ color: "#7B2E68" }}>Rochelle Ataidê</h3>
+            <div className="flex items-center gap-2 mb-2">
+              <img src={logo} alt="Logo" className="w-8 h-8 rounded-full object-cover" />
+              <h3 className="font-semibold" style={{ color: "#7B2E68" }}>Rochele Ataide</h3>
+            </div>
             <p>Confeitaria artesanal feita com amor e dedicação.</p>
           </div>
           <div>
@@ -63,7 +65,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 mt-8 pt-4 border-t border-pink-50 text-xs text-muted-foreground text-center">
-          © {new Date().getFullYear()} Rochelle Ataidê Confeitaria Artesanal. Todos os direitos reservados.
+          © {new Date().getFullYear()} Rochele Ataide Confeitaria Artesanal. Todos os direitos reservados.
         </div>
       </footer>
     </div>

@@ -47,8 +47,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full bg-background text-foreground">
         <Sidebar className="border-r border-sidebar-border bg-sidebar">
           <SidebarHeader className="p-4">
-            <h1 className="text-xl font-serif font-bold text-primary">Rochelle Ataidê</h1>
-            <p className="text-sm text-muted-foreground">Confeitaria</p>
+            <div className="flex items-center gap-2">
+              <img src="/logo.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover shrink-0" />
+              <div>
+                <h1 className="text-base font-serif font-bold text-primary leading-tight">Rochele Ataide</h1>
+                <p className="text-xs text-muted-foreground">Confeitaria</p>
+              </div>
+            </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>

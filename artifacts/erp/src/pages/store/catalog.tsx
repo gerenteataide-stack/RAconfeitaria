@@ -64,11 +64,14 @@ export default function StoreCatalog() {
           <Badge className="mb-4 text-xs font-medium border-white/30 text-white bg-white/20 backdrop-blur-sm">
             ✨ Encomendas artesanais
           </Badge>
+          <div className="flex items-center justify-center mb-4">
+            <img src="/logo.jpeg" alt="Rochele Ataide" className="w-20 h-20 rounded-full object-cover border-4 border-white/30 shadow-lg" />
+          </div>
           <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-3">
-            Cardápio
+            Cardapio
           </h1>
           <p className="text-white/80 text-lg max-w-md mx-auto">
-            Bolos, tortas e doces feitos com amor. Escolha, encomendar é simples!
+            Bolos, tortas e doces feitos com amor. Escolha, encomendar e simples!
           </p>
         </div>
       </div>
