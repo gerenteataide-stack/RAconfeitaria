@@ -8,7 +8,8 @@ import {
   Box, 
   BookOpen, 
   DollarSign, 
-  Settings 
+  Settings,
+  Store
 } from "lucide-react";
 import { 
   Sidebar, 
@@ -35,6 +36,8 @@ const NAV_ITEMS = [
   { title: "Financeiro", url: "/financial", icon: DollarSign },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
+
+const STORE_LINK = { title: "Ver Loja Pública", url: "/cardapio", icon: Store };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -66,6 +69,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
+        <SidebarFooter className="p-3 border-t border-sidebar-border">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <Link href={STORE_LINK.url} className="flex items-center gap-3 text-xs font-medium" style={{ color: "#8A9A75" }}>
+                  <STORE_LINK.icon className="h-4 w-4" />
+                  <span>{STORE_LINK.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
         </Sidebar>
         <main className="flex-1 flex flex-col p-6 overflow-y-auto">
           {children}

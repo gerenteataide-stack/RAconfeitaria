@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout";
+import { StoreLayout } from "@/components/store-layout";
+import { CartProvider } from "@/contexts/cart";
 
 import Dashboard from "@/pages/dashboard";
 import Orders from "@/pages/orders/index";
@@ -16,9 +18,27 @@ import Financial from "@/pages/financial";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
+import StoreCatalog from "@/pages/store/catalog";
+import StoreCheckout from "@/pages/store/checkout";
+import StoreSuccess from "@/pages/store/success";
+
 const queryClient = new QueryClient();
 
-function Router() {
+function StoreRouter() {
+  return (
+    <CartProvider>
+      <StoreLayout>
+        <Switch>
+          <Route path="/cardapio" component={StoreCatalog} />
+          <Route path="/cardapio/checkout" component={StoreCheckout} />
+          <Route path="/cardapio/sucesso" component={StoreSuccess} />
+        </Switch>
+      </StoreLayout>
+    </CartProvider>
+  );
+}
+
+function AdminRouter() {
   return (
     <AppLayout>
       <Switch>
@@ -36,6 +56,16 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
+  );
+}
+
+function Router() {
+  return (
+    <Switch>
+      <Route path="/cardapio" component={StoreRouter} />
+      <Route path="/cardapio/:rest*" component={StoreRouter} />
+      <Route component={AdminRouter} />
+    </Switch>
   );
 }
 
