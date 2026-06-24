@@ -194,10 +194,14 @@ export default function StoreCatalog() {
               return (
                 <div key={product.id}
                   className="bg-white rounded-2xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
-                  {/* Product image placeholder */}
-                  <div className="h-44 flex items-center justify-center relative"
+                  {/* Product image */}
+                  <div className="h-44 flex items-center justify-center relative overflow-hidden"
                     style={{ background: "linear-gradient(135deg, #FFF0F8 0%, #F8F0FF 100%)" }}>
-                    <Cake className="w-16 h-16 opacity-20" style={{ color: "#7B2E68" }} />
+                    {product.imageUrl ? (
+                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Cake className="w-16 h-16 opacity-20" style={{ color: "#7B2E68" }} />
+                    )}
                     <div className="absolute top-3 right-3">
                       <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">
                         <Star className="w-3 h-3 fill-amber-400 text-amber-400" />

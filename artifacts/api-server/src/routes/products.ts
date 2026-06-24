@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { db, productsTable, categoriesTable } from "@workspace/db";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { eq, ilike, and } from "drizzle-orm";
 import {
   CreateProductBody,
   UpdateProductBody,
@@ -9,6 +12,25 @@ import {
   UpdateProductParams,
   DeleteProductParams,
 } from "@workspace/api-zod";
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    cb(null, `product-${Date.now()}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files allowed"));
+  },
+});
 
 const router: IRouter = Router();
 
@@ -125,6 +147,15 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
   const [p] = await db.delete(productsTable).where(eq(productsTable.id, params.data.id)).returning();
   if (!p) { res.status(404).json({ error: "Product not found" }); return; }
   res.sendStatus(204);
+});
+
+router.post("/products/:id/image", upload.single("image"), async (req, res): Promise<void> => {
+  const id = Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+  if (!req.file) { res.status(400).json({ error: "No image file provided" }); return; }
+  const imageUrl = `/api/uploads/${req.file.filename}`;
+  const [p] = await db.update(productsTable).set({ imageUrl }).where(eq(productsTable.id, id)).returning();
+  if (!p) { res.status(404).json({ error: "Product not found" }); return; }
+  res.json(formatProduct(p as Record<string, unknown>));
 });
 
 export default router;
