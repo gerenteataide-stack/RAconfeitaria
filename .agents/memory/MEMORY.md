@@ -1,0 +1,1 @@
+- [Rochelle ERP stack](rochelle-erp.md) — confeitaria ERP: Express API + React Vite frontend, Drizzle/Postgres, all modules built

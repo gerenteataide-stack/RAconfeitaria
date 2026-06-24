@@ -1,0 +1,490 @@
+PRD MASTER — ROCHELLE ATAIDE CONFEITARIA
+ERP + Loja Online + Aplicativo de Pedidos + Produção + Financeiro + CRM
+Visão Geral
+
+Desenvolver uma plataforma SaaS moderna para a Rochelle Ataide Confeitaria Artesanal, unificando vendas, produção, estoque, financeiro, CRM e loja online em um único sistema.
+
+O sistema deve transmitir elegância, sofisticação, organização e praticidade, utilizando como referência visual a identidade da marca enviada.
+
+TECNOLOGIA OBRIGATÓRIA
+Front-end
+Next.js 15
+TypeScript
+Tailwind CSS
+Shadcn/UI
+React Hook Form
+Zod
+TanStack Query
+Back-end
+Next.js Server Actions
+Prisma ORM
+PostgreSQL
+Banco de Dados
+PostgreSQL Neon
+Upload de Arquivos
+Cloudinary
+Autenticação
+NextAuth/Auth.js
+Bcrypt
+Hospedagem
+Vercel
+Notificações
+Firebase Cloud Messaging
+WhatsApp
+Email
+Pagamentos
+Mercado Pago
+PIX
+Cartão
+Link de pagamento
+DESIGN SYSTEM
+
+Inspirado na logo enviada.
+
+Cores
+
+Primary:
+
+#7B2E68
+
+Secondary:
+
+#8A9A75
+
+Background:
+
+#FFF9FC
+
+Cards:
+
+#FFFFFF
+
+Text:
+
+#2C2C2C
+
+Success:
+
+#28A745
+
+Warning:
+
+#FFC107
+
+Danger:
+
+#DC3545
+Estilo
+Premium
+Feminino
+Sofisticado
+Minimalista
+Responsivo
+Mobile First
+
+Referências:
+
+iFood
+Shopify
+Notion
+Granatum
+PERFIS DE ACESSO
+Proprietária
+
+Acesso total.
+
+Gerente
+
+Sem acesso a configurações críticas.
+
+Financeiro
+
+Apenas financeiro.
+
+Produção
+
+Produção e receitas.
+
+Estoquista
+
+Estoque.
+
+Atendente
+
+Pedidos e clientes.
+
+MÓDULO DASHBOARD EXECUTIVO
+
+Exibir:
+
+Faturamento hoje
+Faturamento mensal
+Lucro líquido
+CMV médio
+Ticket médio
+Pedidos do dia
+Produtos mais vendidos
+Produtos mais lucrativos
+Clientes recorrentes
+Estoque crítico
+
+Gráficos:
+
+Vendas por período
+Lucro por período
+Produtos vendidos
+Crescimento mensal
+MÓDULO LOJA ONLINE
+
+Funcionar semelhante ao iFood.
+
+Página pública
+
+URL:
+
+rochelletaide.com/cardapio
+
+ou
+
+app.rochelletaide.com
+
+Funcionalidades
+Catálogo
+Foto
+Nome
+Descrição
+Categoria
+Valor
+Disponibilidade
+Categorias
+Bolos
+Tortas
+Doces
+Sobremesas
+Kits Festa
+Personalizados
+Salgados
+Carrinho
+Adicionar item
+Alterar quantidade
+Remover item
+Observações
+Checkout
+
+Cliente informa:
+
+Nome
+Telefone
+WhatsApp
+Endereço
+CEP
+Data da encomenda
+Horário
+Formas de Entrega
+Retirada
+Delivery
+
+Taxa calculada automaticamente.
+
+MÓDULO PEDIDOS
+
+Status:
+
+Novo
+Aguardando pagamento
+Pago
+Produção
+Pronto
+Saiu para entrega
+Entregue
+Cancelado
+
+Linha do tempo completa.
+
+MÓDULO CRM
+
+Cadastro de clientes.
+
+Campos:
+
+Nome
+Telefone
+WhatsApp
+Email
+Data nascimento
+Endereço
+Observações
+Histórico
+
+Visualizar:
+
+Todos os pedidos
+Valor gasto
+Ticket médio
+Última compra
+Fidelidade
+
+Acumular pontos.
+
+Exemplo:
+
+R$ 1 = 1 ponto
+
+Troca por:
+
+Descontos
+Produtos
+MÓDULO MARKETING
+Cupons
+PRIMEIRACOMPRA
+ANIVERSARIO
+BLACKFRIDAY
+Cashback
+
+Percentual configurável.
+
+Campanhas
+
+Enviar:
+
+WhatsApp
+Email
+Push Notification
+MÓDULO ESTOQUE
+
+Cadastro de ingredientes.
+
+Campos:
+
+Nome
+Unidade
+Quantidade
+Estoque mínimo
+Custo unitário
+Fornecedor
+Alertas
+
+Quando atingir estoque mínimo:
+
+Dashboard
+Notificação
+MÓDULO FICHAS TÉCNICAS
+
+Cada produto possui:
+
+Ingredientes
+Ingrediente
+Quantidade
+Unidade
+Produção
+Modo de preparo
+Tempo
+Fotos
+Cálculo Automático
+
+Calcular:
+
+Custo da receita
+Custo unitário
+Custo total
+MÓDULO CMV
+
+Calcular automaticamente:
+
+CMV = Custo Produto ÷ Venda × 100
+
+Mostrar:
+
+CMV ideal
+CMV atual
+CMV por produto
+MÓDULO PRECIFICAÇÃO INTELIGENTE
+
+Calcular:
+
+Ingredientes
+Embalagem
+Energia
+Mão de Obra
+Taxas
+Impostos
+Lucro
+
+Gerar automaticamente:
+
+Preço mínimo
+Preço ideal
+Lucro previsto
+MÓDULO PRODUÇÃO
+
+Painel diário.
+
+Hoje produzir:
+
+Produto
+Quantidade
+Horário
+
+Status:
+
+Pendente
+Produzindo
+Finalizado
+MÓDULO FINANCEIRO
+Contas a Receber
+Cliente
+Valor
+Data
+Contas a Pagar
+Fornecedor
+Valor
+Data
+Fluxo de Caixa
+Entradas
+Saídas
+Saldo
+DRE Simplificada
+
+Mostrar:
+
+Receita
+Custos
+Despesas
+Lucro
+MÓDULO DELIVERY
+
+Cadastrar:
+
+Bairros
+CEPs
+Taxas
+
+Cálculo automático.
+
+MÓDULO NOTIFICAÇÕES
+
+Enviar:
+
+Cliente
+Pedido recebido
+Pedido pago
+Pedido pronto
+Saiu para entrega
+Administradora
+Estoque baixo
+Pedido novo
+Pagamento recebido
+APP PWA
+
+Transformar sistema em aplicativo.
+
+Funcionar:
+
+Android
+iPhone
+
+Sem necessidade de loja.
+
+SEGURANÇA EMPRESARIAL
+Login
+JWT
+Bcrypt
+Sessão segura
+Proteções
+
+Implementar:
+
+SQL Injection
+XSS
+CSRF
+Rate Limit
+Brute Force
+Auditoria
+
+Registrar:
+
+Quem criou
+Quem alterou
+Quem excluiu
+Logs
+
+Salvar:
+
+Data
+Hora
+Usuário
+IP
+LGPD
+
+Implementar:
+
+Política de privacidade
+Consentimento
+Exportação de dados
+Exclusão de dados
+BACKUP
+
+Automático:
+
+Diário
+Semanal
+Mensal
+BANCO DE DADOS
+
+Criar tabelas:
+
+users
+roles
+permissions
+products
+product_categories
+product_images
+customers
+customer_addresses
+orders
+order_items
+payments
+coupons
+loyalty_points
+stock_items
+stock_movements
+suppliers
+recipes
+recipe_ingredients
+production_orders
+financial_entries
+financial_categories
+delivery_zones
+notifications
+audit_logs
+settings
+
+Todas com:
+
+id UUID
+created_at
+updated_at
+DIFERENCIAL
+
+Criar arquitetura preparada para expansão futura:
+
+Multiempresa
+Multiusuário
+Marketplace
+Integração WhatsApp Business
+Integração Mercado Pago
+Integração PIX automático
+Relatórios BI
+Inteligência Artificial para previsão de vendas
+Aplicativo próprio para clientes
+RESULTADO ESPERADO
+
+Um sistema profissional equivalente à combinação de:
+
+iFood
+Shopify
+MarketUP
+Granatum
+Trello
+
+em uma única plataforma moderna, elegante, rápida, segura e escalável, totalmente alinhada à identidade visual da Rochelle Ataide Confeitaria Artesanal.

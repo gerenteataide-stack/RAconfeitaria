@@ -1,0 +1,76 @@
+import { Link, useLocation } from "wouter";
+import { 
+  LayoutDashboard, 
+  ShoppingCart, 
+  Users, 
+  Package, 
+  ChefHat, 
+  Box, 
+  BookOpen, 
+  DollarSign, 
+  Settings 
+} from "lucide-react";
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarFooter, 
+  SidebarGroup, 
+  SidebarGroupContent, 
+  SidebarGroupLabel, 
+  SidebarHeader, 
+  SidebarMenu, 
+  SidebarMenuButton, 
+  SidebarMenuItem,
+  SidebarProvider
+} from "@/components/ui/sidebar";
+
+const NAV_ITEMS = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Pedidos", url: "/orders", icon: ShoppingCart },
+  { title: "Clientes", url: "/customers", icon: Users },
+  { title: "Produtos", url: "/products", icon: Package },
+  { title: "Produção", url: "/production", icon: ChefHat },
+  { title: "Estoque", url: "/stock", icon: Box },
+  { title: "Fichas Técnicas", url: "/recipes", icon: BookOpen },
+  { title: "Financeiro", url: "/financial", icon: DollarSign },
+  { title: "Configurações", url: "/settings", icon: Settings },
+];
+
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background text-foreground">
+        <Sidebar className="border-r border-sidebar-border bg-sidebar">
+          <SidebarHeader className="p-4">
+            <h1 className="text-xl font-serif font-bold text-primary">Rochelle Ataidê</h1>
+            <p className="text-sm text-muted-foreground">Confeitaria</p>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Menu</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {NAV_ITEMS.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild isActive={location.startsWith(item.url)}>
+                        <Link href={item.url} className="flex items-center gap-3">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        <main className="flex-1 flex flex-col p-6 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
