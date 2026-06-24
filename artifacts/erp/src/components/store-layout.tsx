@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { ShoppingCart, MapPin, Phone, Instagram } from "lucide-react";
 import { useCart } from "@/contexts/cart";
 import { Badge } from "@/components/ui/badge";
-import logo from "/logo.jpeg";
+import logo from "/logo.png";
 
 export function StoreLayout({ children }: { children: React.ReactNode }) {
   const { count } = useCart();
@@ -14,7 +14,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/cardapio">
             <div className="flex items-center gap-2 cursor-pointer group">
-              <img src={logo} alt="Rochele Ataide Confeitaria Artesanal" className="w-10 h-10 rounded-full object-cover" />
+              <img src={logo} alt="Rochele Ataide Confeitaria Artesanal" className="w-11 h-11 object-contain" />
               <div>
                 <h1 className="font-serif font-bold text-sm leading-tight" style={{ color: "#7B2E68" }}>
                   Rochele Ataide
@@ -49,7 +49,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm text-muted-foreground">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <img src={logo} alt="Logo" className="w-8 h-8 rounded-full object-cover" />
+              <img src={logo} alt="Logo" className="w-9 h-9 object-contain" />
               <h3 className="font-semibold" style={{ color: "#7B2E68" }}>Rochele Ataide</h3>
             </div>
             <p>Confeitaria artesanal feita com amor e dedicação.</p>
