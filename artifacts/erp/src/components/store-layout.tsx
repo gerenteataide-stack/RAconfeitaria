@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ShoppingCart, MapPin, Phone, Instagram } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, MapPin, Phone, Instagram } from "lucide-react";
 import { useCart } from "@/contexts/cart";
 import { Badge } from "@/components/ui/badge";
 import logo from "/logo.png";
@@ -24,18 +24,26 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
-          <Link href="/cardapio/checkout">
-            <button className="relative flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ backgroundColor: "#7B2E68" }}>
-              <ShoppingCart className="w-4 h-4" />
-              <span>Ver carrinho</span>
-              {count > 0 && (
-                <Badge className="absolute -top-2 -right-2 w-5 h-5 p-0 flex items-center justify-center text-xs rounded-full bg-amber-400 text-amber-900 border-0">
-                  {count}
-                </Badge>
-              )}
-            </button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard">
+              <button className="hidden items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </button>
+            </Link>
+            <Link href="/cardapio/checkout">
+              <button className="relative flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#7B2E68" }}>
+                <ShoppingCart className="w-4 h-4" />
+                <span>Ver carrinho</span>
+                {count > 0 && (
+                  <Badge className="absolute -top-2 -right-2 w-5 h-5 p-0 flex items-center justify-center text-xs rounded-full bg-amber-400 text-amber-900 border-0">
+                    {count}
+                  </Badge>
+                )}
+              </button>
+            </Link>
+          </div>
         </div>
       </header>
 

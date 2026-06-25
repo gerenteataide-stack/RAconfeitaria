@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, ordersTable, orderItemsTable, customersTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { db, ordersTable, orderItemsTable, customersTable, productsTable } from "@workspace/db";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import {
   CreateOrderBody,
   UpdateOrderBody,
@@ -76,11 +76,15 @@ router.post("/orders", async (req, res): Promise<void> => {
   }).returning();
 
   if (items.length > 0) {
+    const productIds = Array.from(new Set(items.map((i) => i.productId)));
+    const products = await db.select().from(productsTable).where(inArray(productsTable.id, productIds));
+    const productNames = new Map(products.map((p) => [p.id, p.name]));
+
     await db.insert(orderItemsTable).values(
       items.map((i) => ({
         orderId: order.id,
         productId: i.productId,
-        productName: `Product #${i.productId}`,
+        productName: productNames.get(i.productId) ?? `Produto #${i.productId}`,
         quantity: i.quantity,
         unitPrice: String(i.unitPrice),
         subtotal: String(i.unitPrice * i.quantity),
