@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, ordersTable, orderItemsTable, customersTable, productsTable } from "@workspace/db";
+import { db, ordersTable, orderItemsTable, customersTable, productsTable, financialEntriesTable } from "@workspace/db";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import {
   CreateOrderBody,
@@ -30,6 +30,46 @@ async function getOrderWithItems(orderId: number) {
       subtotal: Number(i.subtotal),
     })),
   };
+}
+
+async function ensureCustomerForOrder(orderData: {
+  customerId?: number;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+}) {
+  if (orderData.customerId || !orderData.customerName || !orderData.customerPhone) return orderData.customerId;
+
+  const [existing] = await db.select().from(customersTable).where(eq(customersTable.phone, orderData.customerPhone)).limit(1);
+  if (existing) return existing.id;
+
+  const [customer] = await db.insert(customersTable).values({
+    name: orderData.customerName,
+    phone: orderData.customerPhone,
+    whatsapp: orderData.customerPhone,
+    address: orderData.deliveryAddress,
+  }).returning();
+  return customer.id;
+}
+
+async function ensureFinancialEntryForPaidOrder(order: typeof ordersTable.$inferSelect) {
+  const existing = await db.select().from(financialEntriesTable)
+    .where(sql`order_id = ${order.id} AND type = 'receivable'`)
+    .limit(1);
+  if (existing.length > 0) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  await db.insert(financialEntriesTable).values({
+    type: "receivable",
+    description: `Pedido #${order.id}`,
+    amount: String(order.total),
+    dueDate: today,
+    paidAt: today,
+    paid: true,
+    counterpart: order.customerName ?? "Cliente",
+    category: "Venda",
+    orderId: order.id,
+  });
 }
 
 router.get("/orders", async (req, res): Promise<void> => {
@@ -68,9 +108,11 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const { items, ...orderData } = parsed.data;
   const total = items.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0) + (orderData.deliveryFee ?? 0);
+  const customerId = await ensureCustomerForOrder(orderData);
 
   const [order] = await db.insert(ordersTable).values({
     ...orderData,
+    customerId,
     total: String(total),
     deliveryFee: orderData.deliveryFee !== undefined ? String(orderData.deliveryFee) : "0",
   }).returning();
@@ -94,14 +136,14 @@ router.post("/orders", async (req, res): Promise<void> => {
   }
 
   // update customer stats if customerId provided
-  if (orderData.customerId) {
+  if (customerId) {
     await db.execute(sql`
       UPDATE customers SET 
         total_orders = total_orders + 1,
         total_spent = total_spent + ${total},
         loyalty_points = loyalty_points + ${Math.floor(total)},
         last_order_at = now()
-      WHERE id = ${orderData.customerId}
+      WHERE id = ${customerId}
     `);
   }
 
@@ -149,6 +191,9 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
 
   const [o] = await db.update(ordersTable).set({ status: parsed.data.status }).where(eq(ordersTable.id, params.data.id)).returning();
   if (!o) { res.status(404).json({ error: "Order not found" }); return; }
+  if (parsed.data.status === "paid") {
+    await ensureFinancialEntryForPaidOrder(o);
+  }
   const result = await getOrderWithItems(o.id);
   res.json(result);
 });

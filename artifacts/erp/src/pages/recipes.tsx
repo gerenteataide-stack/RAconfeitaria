@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListRecipes,
@@ -197,8 +197,8 @@ export default function Recipes() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Fichas Técnicas</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gerencie receitas, custos e ingredientes das suas produções.</p>
+          <h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Fichas técnicas</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gerencie receitas, custos e insumos das suas produções.</p>
         </div>
         <Button onClick={openCreate} className="gap-2" style={{ backgroundColor: "#7B2E68" }}>
           <Plus className="w-4 h-4" /> Nova ficha
@@ -313,7 +313,7 @@ export default function Recipes() {
 
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
-                <Label>Ingredientes</Label>
+                <Label>Insumos cadastrados no estoque</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addIngredient}>Adicionar</Button>
               </div>
 
@@ -369,7 +369,7 @@ export default function Recipes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remover ficha técnica?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não poderá ser desfeita e removerá também os ingredientes associados.
+              Esta ação não poderá ser desfeita e removerá também os insumos associados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -381,3 +381,4 @@ export default function Recipes() {
     </div>
   );
 }
+

@@ -285,7 +285,7 @@ export default function StoreCheckout() {
                 {createOrder.isPending ? "Enviando..." : "Confirmar pedido â†’"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                O pagamento sera combinado pelo WhatsApp. Voce pode pagar pelo PicPay.
+                O pagamento será combinado pelo WhatsApp. Você pode pagar pelo PicPay.
               </p>
             </div>
           </div>
