@@ -1,8 +1,12 @@
+import { getAuthToken } from "@/lib/auth-token";
+
 export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken();
   const response = await fetch(url, {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });

@@ -1,52 +1,57 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  Users, 
-  Package, 
-  ChefHat, 
-  Box, 
-  BookOpen, 
-  DollarSign, 
-  Settings,
-  Store,
+import {
+  Bell,
+  BookOpen,
+  Box,
+  ChefHat,
+  DollarSign,
+  LayoutDashboard,
   Megaphone,
+  Package,
+  Settings,
+  ShoppingCart,
+  Store,
   Truck,
-  Bell
+  Users,
 } from "lucide-react";
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarFooter, 
-  SidebarGroup, 
-  SidebarGroupContent, 
-  SidebarGroupLabel, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuButton, 
+import { Button } from "@/components/ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider
+  SidebarProvider,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/auth";
 
 const NAV_ITEMS = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Pedidos", url: "/orders", icon: ShoppingCart },
-  { title: "Clientes", url: "/customers", icon: Users },
-  { title: "Produtos", url: "/products", icon: Package },
-  { title: "Produção", url: "/production", icon: ChefHat },
-  { title: "Estoque", url: "/stock", icon: Box },
-  { title: "Fichas Técnicas", url: "/recipes", icon: BookOpen },
-  { title: "Financeiro", url: "/financial", icon: DollarSign },
-  { title: "Marketing", url: "/marketing", icon: Megaphone },
-  { title: "Delivery", url: "/delivery", icon: Truck },
-  { title: "Notificações", url: "/notifications", icon: Bell },
-  { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
+  { title: "Pedidos", url: "/orders", icon: ShoppingCart, permission: "orders" },
+  { title: "Clientes", url: "/customers", icon: Users, permission: "customers" },
+  { title: "Produtos", url: "/products", icon: Package, permission: "products" },
+  { title: "Producao", url: "/production", icon: ChefHat, permission: "production" },
+  { title: "Estoque", url: "/stock", icon: Box, permission: "stock" },
+  { title: "Fichas Tecnicas", url: "/recipes", icon: BookOpen, permission: "recipes" },
+  { title: "Financeiro", url: "/financial", icon: DollarSign, permission: "financial" },
+  { title: "Marketing", url: "/marketing", icon: Megaphone, permission: "marketing" },
+  { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },
+  { title: "Notificacoes", url: "/notifications", icon: Bell, permission: "notifications" },
+  { title: "Configuracoes", url: "/settings", icon: Settings, permission: "*" },
+  { title: "Usuarios", url: "/users", icon: Users, permission: "*" },
 ];
 
-const STORE_LINK = { title: "Ver Loja Pública", url: "/cardapio", icon: Store };
+const STORE_LINK = { title: "Ver Loja Publica", url: "/cardapio", icon: Store };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { user, can, logout } = useAuth();
+  const visibleItems = NAV_ITEMS.filter((item) => can(item.permission));
 
   return (
     <SidebarProvider>
@@ -54,9 +59,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r border-sidebar-border bg-sidebar">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain shrink-0" />
+              <img src="/logo.png" alt="Logo" className="h-10 w-10 shrink-0 object-contain" />
               <div>
-                <h1 className="text-base font-serif font-bold text-primary leading-tight">Rochele Ataide</h1>
+                <h1 className="font-serif text-base font-bold leading-tight text-primary">Rochelle Ataide</h1>
                 <p className="text-xs text-muted-foreground">Confeitaria</p>
               </div>
             </div>
@@ -66,7 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarGroupLabel>Menu</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {NAV_ITEMS.map((item) => (
+                  {visibleItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={location.startsWith(item.url)}>
                         <Link href={item.url} className="flex items-center gap-3">
@@ -80,20 +85,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
-        <SidebarFooter className="p-3 border-t border-sidebar-border">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href={STORE_LINK.url} className="flex items-center gap-3 text-xs font-medium" style={{ color: "#8A9A75" }}>
-                  <STORE_LINK.icon className="h-4 w-4" />
-                  <span>{STORE_LINK.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
+          <SidebarFooter className="border-t border-sidebar-border p-3">
+            <SidebarMenu>
+              {user && (
+                <SidebarMenuItem>
+                  <div className="mb-3 rounded-md border border-sidebar-border bg-white/70 p-3">
+                    <p className="truncate text-sm font-medium text-primary">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.roleLabel}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={logout}>
+                      Sair
+                    </Button>
+                  </div>
+                </SidebarMenuItem>
+              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href={STORE_LINK.url} className="flex items-center gap-3 text-xs font-medium" style={{ color: "#8A9A75" }}>
+                    <STORE_LINK.icon className="h-4 w-4" />
+                    <span>{STORE_LINK.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
-        <main className="flex-1 flex flex-col p-6 overflow-y-auto">
+        <main className="flex flex-1 flex-col overflow-y-auto p-6">
           {children}
         </main>
       </div>

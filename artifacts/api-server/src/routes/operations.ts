@@ -8,6 +8,7 @@ import {
   notificationsTable,
   settingsTable,
 } from "@workspace/db";
+import { requireAuth, requirePermission } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -78,7 +79,7 @@ function notification(row: typeof notificationsTable.$inferSelect) {
 async function writeAudit(req: Request, action: string, entity: string, entityId?: number | string) {
   await db.execute(sql`
     INSERT INTO audit_logs (actor, action, entity, entity_id, ip)
-    VALUES ('admin', ${action}, ${entity}, ${entityId ? String(entityId) : null}, ${req.ip ?? null})
+    VALUES (${req.user?.email ?? "system"}, ${action}, ${entity}, ${entityId ? String(entityId) : null}, ${req.ip ?? null})
   `);
 }
 
@@ -99,7 +100,7 @@ router.get("/delivery-zones", async (req, res): Promise<void> => {
   res.json(rows.map(zone));
 });
 
-router.post("/delivery-zones", async (req, res): Promise<void> => {
+router.post("/delivery-zones", requireAuth, requirePermission("delivery"), async (req, res): Promise<void> => {
   const parsed = DeliveryZoneBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [row] = await db.insert(deliveryZonesTable).values({
@@ -111,7 +112,7 @@ router.post("/delivery-zones", async (req, res): Promise<void> => {
   res.status(201).json(zone(row));
 });
 
-router.patch("/delivery-zones/:id", async (req, res): Promise<void> => {
+router.patch("/delivery-zones/:id", requireAuth, requirePermission("delivery"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const parsed = DeliveryZoneBody.partial().safeParse(req.body);
   if (!Number.isFinite(id) || !parsed.success) { res.status(400).json({ error: parsed.success ? "Invalid id" : parsed.error.message }); return; }
@@ -124,7 +125,7 @@ router.patch("/delivery-zones/:id", async (req, res): Promise<void> => {
   res.json(zone(row));
 });
 
-router.delete("/delivery-zones/:id", async (req, res): Promise<void> => {
+router.delete("/delivery-zones/:id", requireAuth, requirePermission("delivery"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const [row] = await db.delete(deliveryZonesTable).where(eq(deliveryZonesTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Delivery zone not found" }); return; }
@@ -132,12 +133,12 @@ router.delete("/delivery-zones/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/marketing/coupons", async (_req, res): Promise<void> => {
+router.get("/marketing/coupons", requireAuth, requirePermission("marketing"), async (_req, res): Promise<void> => {
   const rows = await db.select().from(couponsTable).orderBy(couponsTable.code);
   res.json(rows.map(coupon));
 });
 
-router.post("/marketing/coupons", async (req, res): Promise<void> => {
+router.post("/marketing/coupons", requireAuth, requirePermission("marketing"), async (req, res): Promise<void> => {
   const parsed = CouponBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [row] = await db.insert(couponsTable).values({
@@ -149,7 +150,7 @@ router.post("/marketing/coupons", async (req, res): Promise<void> => {
   res.status(201).json(coupon(row));
 });
 
-router.patch("/marketing/coupons/:id", async (req, res): Promise<void> => {
+router.patch("/marketing/coupons/:id", requireAuth, requirePermission("marketing"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const parsed = CouponBody.partial().safeParse(req.body);
   if (!Number.isFinite(id) || !parsed.success) { res.status(400).json({ error: parsed.success ? "Invalid id" : parsed.error.message }); return; }
@@ -162,7 +163,7 @@ router.patch("/marketing/coupons/:id", async (req, res): Promise<void> => {
   res.json(coupon(row));
 });
 
-router.delete("/marketing/coupons/:id", async (req, res): Promise<void> => {
+router.delete("/marketing/coupons/:id", requireAuth, requirePermission("marketing"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const [row] = await db.delete(couponsTable).where(eq(couponsTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Coupon not found" }); return; }
@@ -170,12 +171,12 @@ router.delete("/marketing/coupons/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/notifications", async (_req, res): Promise<void> => {
+router.get("/notifications", requireAuth, requirePermission("notifications"), async (_req, res): Promise<void> => {
   const rows = await db.select().from(notificationsTable).orderBy(sql`created_at DESC`);
   res.json(rows.map(notification));
 });
 
-router.post("/notifications", async (req, res): Promise<void> => {
+router.post("/notifications", requireAuth, requirePermission("notifications"), async (req, res): Promise<void> => {
   const parsed = NotificationBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [row] = await db.insert(notificationsTable).values(parsed.data).returning();
@@ -183,7 +184,7 @@ router.post("/notifications", async (req, res): Promise<void> => {
   res.status(201).json(notification(row));
 });
 
-router.patch("/notifications/:id/read", async (req, res): Promise<void> => {
+router.patch("/notifications/:id/read", requireAuth, requirePermission("notifications"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const [row] = await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.id, id)).returning();
   if (!row) { res.status(404).json({ error: "Notification not found" }); return; }
@@ -191,7 +192,7 @@ router.patch("/notifications/:id/read", async (req, res): Promise<void> => {
   res.json(notification(row));
 });
 
-router.get("/settings/business", async (_req, res): Promise<void> => {
+router.get("/settings/business", requireAuth, requirePermission("*"), async (_req, res): Promise<void> => {
   const rows = await db.select().from(settingsTable);
   const data = Object.fromEntries(rows.map((row) => [row.key, row.value]));
   res.json({
@@ -202,7 +203,7 @@ router.get("/settings/business", async (_req, res): Promise<void> => {
   });
 });
 
-router.put("/settings/business", async (req, res): Promise<void> => {
+router.put("/settings/business", requireAuth, requirePermission("*"), async (req, res): Promise<void> => {
   const parsed = SettingsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const entries = Object.entries(parsed.data).filter(([, value]) => value !== undefined);
