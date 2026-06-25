@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#7B2E68" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="RA Confeitaria" />
     <title>Rochelle Ataidê Confeitaria — ERP</title>
     <meta name="description" content="Rochelle Ataidê Confeitaria — ERP — built on Replit. Update this description to reflect the app." />
     <meta name="robots" content="index, follow" />
@@ -20,5 +24,10 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => undefined));
+      }
+    </script>
   </body>
 </html>

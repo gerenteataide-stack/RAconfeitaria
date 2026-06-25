@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Truck, Store, CalendarDays, ShoppingBag, Minus, Plus } from "lucide-react";
 import { useCreateOrder } from "@workspace/api-client-react";
@@ -9,29 +10,63 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/api";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const DELIVERY_FEE = 15;
+type DeliveryZone = {
+  id: number;
+  name: string;
+  cepStart: string | null;
+  cepEnd: string | null;
+  neighborhood: string | null;
+  fee: number;
+  minOrder: number;
+  active: boolean;
+};
+
+function normalize(value: string) {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
 
 export default function StoreCheckout() {
   const [, navigate] = useLocation();
   const { items, updateQuantity, removeItem, total, clear } = useCart();
   const { toast } = useToast();
   const createOrder = useCreateOrder();
+  const { data: deliveryZones = [] } = useQuery({
+    queryKey: ["public-delivery-zones"],
+    queryFn: () => apiRequest<DeliveryZone[]>("/api/delivery-zones?active=true"),
+  });
 
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
     deliveryType: "pickup" as "pickup" | "delivery",
     deliveryAddress: "",
+    neighborhood: "",
+    cep: "",
     deliveryDate: "",
     notes: "",
   });
 
-  const deliveryFee = form.deliveryType === "delivery" ? DELIVERY_FEE : 0;
+  const selectedZone = form.deliveryType === "delivery"
+    ? deliveryZones.find((zone) => {
+      const neighborhoodMatch = zone.neighborhood && form.neighborhood && normalize(zone.neighborhood) === normalize(form.neighborhood);
+      const cep = onlyDigits(form.cep);
+      const cepStart = onlyDigits(zone.cepStart ?? "");
+      const cepEnd = onlyDigits(zone.cepEnd ?? "");
+      const cepMatch = cep && cepStart && cepEnd && cep >= cepStart && cep <= cepEnd;
+      return neighborhoodMatch || cepMatch;
+    })
+    : undefined;
+  const deliveryFee = form.deliveryType === "delivery" ? selectedZone?.fee ?? 0 : 0;
   const grandTotal = total + deliveryFee;
 
   function handleChange(field: string, value: string) {
@@ -48,18 +83,21 @@ export default function StoreCheckout() {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
-    if (form.deliveryType === "delivery" && !form.deliveryAddress) {
-      toast({ title: "Informe o endereço de entrega", variant: "destructive" });
+    if (form.deliveryType === "delivery" && (!form.deliveryAddress || !form.neighborhood)) {
+      toast({ title: "Informe o endere�o e o bairro de entrega", variant: "destructive" });
       return;
     }
-
+    if (form.deliveryType === "delivery" && deliveryZones.length > 0 && !selectedZone) {
+      toast({ title: "Bairro ou CEP fora da �rea de entrega", variant: "destructive" });
+      return;
+    }
     try {
       const order = await createOrder.mutateAsync({
         data: {
           customerName: form.customerName,
           customerPhone: form.customerPhone,
           deliveryType: form.deliveryType,
-          deliveryAddress: form.deliveryAddress || undefined,
+          deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress} - ${form.neighborhood}${form.cep ? ` - CEP ${form.cep}` : ""}` : undefined,
           deliveryDate: form.deliveryDate,
           deliveryFee: deliveryFee,
           notes: form.notes || undefined,
@@ -138,7 +176,7 @@ export default function StoreCheckout() {
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${form.deliveryType === "delivery" ? "border-[#7B2E68] bg-pink-50" : "border-pink-100 hover:border-pink-200"}`}>
                   <Truck className="w-6 h-6" style={{ color: form.deliveryType === "delivery" ? "#7B2E68" : undefined }} />
                   <span className="font-medium text-sm">Entrega</span>
-                  <span className="text-xs text-muted-foreground text-center">{fmt(DELIVERY_FEE)} · SP capital</span>
+                  <span className="text-xs text-muted-foreground text-center">Taxa por bairro</span>
                 </button>
               </div>
 
@@ -147,6 +185,21 @@ export default function StoreCheckout() {
                   <Label htmlFor="address">Endereço de entrega *</Label>
                   <Input id="address" placeholder="Rua, número, bairro" value={form.deliveryAddress}
                     onChange={(e) => handleChange("deliveryAddress", e.target.value)} className="mt-1" />
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <Label htmlFor="neighborhood">Bairro *</Label>
+                      <Input id="neighborhood" placeholder="Ex: Centro" value={form.neighborhood}
+                        onChange={(e) => handleChange("neighborhood", e.target.value)} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="cep">CEP</Label>
+                      <Input id="cep" placeholder="00000-000" value={form.cep}
+                        onChange={(e) => handleChange("cep", e.target.value)} className="mt-1" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {selectedZone ? `Entrega ${selectedZone.name}: ${fmt(selectedZone.fee)}` : deliveryZones.length > 0 ? "Informe bairro ou CEP para calcular a taxa." : "Nenhuma taxa cadastrada. A entrega será combinada."}
+                  </p>
                 </div>
               )}
             </div>
@@ -216,7 +269,7 @@ export default function StoreCheckout() {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Frete</span>
-                  <span>{form.deliveryType === "delivery" ? fmt(DELIVERY_FEE) : "Grátis"}</span>
+                  <span>{form.deliveryType === "delivery" ? fmt(deliveryFee) : "Grátis"}</span>
                 </div>
               </div>
 
@@ -241,3 +294,5 @@ export default function StoreCheckout() {
     </div>
   );
 }
+
+

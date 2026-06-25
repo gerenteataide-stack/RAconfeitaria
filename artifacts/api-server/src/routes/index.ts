@@ -9,6 +9,7 @@ import productionRouter from "./production";
 import stockRouter from "./stock";
 import recipesRouter from "./recipes";
 import financialRouter from "./financial";
+import operationsRouter from "./operations";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(productionRouter);
 router.use(stockRouter);
 router.use(recipesRouter);
 router.use(financialRouter);
+router.use(operationsRouter);
 
 export default router;

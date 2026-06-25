@@ -15,6 +15,9 @@ import Production from "@/pages/production";
 import Stock from "@/pages/stock";
 import Recipes from "@/pages/recipes";
 import Financial from "@/pages/financial";
+import Marketing from "@/pages/marketing";
+import Delivery from "@/pages/delivery";
+import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
@@ -52,6 +55,9 @@ function AdminRouter() {
         <Route path="/stock" component={Stock} />
         <Route path="/recipes" component={Recipes} />
         <Route path="/financial" component={Financial} />
+        <Route path="/marketing" component={Marketing} />
+        <Route path="/delivery" component={Delivery} />
+        <Route path="/notifications" component={Notifications} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

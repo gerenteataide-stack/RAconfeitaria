@@ -9,7 +9,10 @@ import {
   BookOpen, 
   DollarSign, 
   Settings,
-  Store
+  Store,
+  Megaphone,
+  Truck,
+  Bell
 } from "lucide-react";
 import { 
   Sidebar, 
@@ -34,6 +37,9 @@ const NAV_ITEMS = [
   { title: "Estoque", url: "/stock", icon: Box },
   { title: "Fichas Técnicas", url: "/recipes", icon: BookOpen },
   { title: "Financeiro", url: "/financial", icon: DollarSign },
+  { title: "Marketing", url: "/marketing", icon: Megaphone },
+  { title: "Delivery", url: "/delivery", icon: Truck },
+  { title: "Notificações", url: "/notifications", icon: Bell },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
