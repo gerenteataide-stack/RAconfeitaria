@@ -121,6 +121,18 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  await esbuild({
+    entryPoints: [path.resolve(artifactDir, "src/app.ts")],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outdir: distDir,
+    outExtension: { ".js": ".cjs" },
+    logLevel: "info",
+    external: ["*.node", "pg-native"],
+    plugins: [esbuildPluginPino({ transports: ["pino-pretty"] })],
+  });
 }
 
 buildAll().catch((err) => {

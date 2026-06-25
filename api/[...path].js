@@ -1,1 +1,3 @@
-export { default } from "../artifacts/api-server/dist/app.mjs";
+const appModule = require("../artifacts/api-server/dist/app.cjs");
+
+module.exports = appModule.default || appModule;
