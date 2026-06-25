@@ -3,6 +3,7 @@ import multer from "multer";
 import os from "os";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { db, productsTable, categoriesTable } from "@workspace/db";
 import { eq, ilike, and } from "drizzle-orm";
 import {
@@ -20,15 +21,8 @@ const uploadsDir = path.join(
 );
 fs.mkdirSync(uploadsDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-    cb(null, `product-${Date.now()}${ext}`);
-  },
-});
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("image/")) cb(null, true);
@@ -37,6 +31,55 @@ const upload = multer({
 });
 
 const router: IRouter = Router();
+
+function hasCloudinaryConfig() {
+  return Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+}
+
+async function uploadToCloudinary(file: Express.Multer.File, productId: number) {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error("Cloudinary is not configured");
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = "ra-confeitaria/produtos";
+  const publicId = `produto-${productId}-${timestamp}`;
+  const signaturePayload = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+  const signature = crypto.createHash("sha1").update(signaturePayload).digest("hex");
+
+  const arrayBuffer = new ArrayBuffer(file.buffer.byteLength);
+  new Uint8Array(arrayBuffer).set(file.buffer);
+  const form = new FormData();
+  form.append("file", new Blob([arrayBuffer], { type: file.mimetype }), file.originalname);
+  form.append("api_key", apiKey);
+  form.append("timestamp", String(timestamp));
+  form.append("folder", folder);
+  form.append("public_id", publicId);
+  form.append("signature", signature);
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: form,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Cloudinary upload failed: ${detail}`);
+  }
+  const data = await response.json() as { secure_url?: string };
+  if (!data.secure_url) throw new Error("Cloudinary did not return secure_url");
+  return data.secure_url;
+}
+
+function saveLocalUpload(file: Express.Multer.File) {
+  const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+  const filename = `product-${Date.now()}${ext}`;
+  fs.writeFileSync(path.join(uploadsDir, filename), file.buffer);
+  return `/api/uploads/${filename}`;
+}
 
 function formatProduct(p: Record<string, unknown>, catName?: string | null) {
   const price = Number(p.price);
@@ -156,9 +199,26 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
 router.post("/products/:id/image", upload.single("image"), async (req, res): Promise<void> => {
   const id = Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
   if (!req.file) { res.status(400).json({ error: "No image file provided" }); return; }
-  const imageUrl = `/api/uploads/${req.file.filename}`;
+  const [current] = await db.select().from(productsTable).where(eq(productsTable.id, id));
+  if (!current) { res.status(404).json({ error: "Product not found" }); return; }
+
+  let imageUrl: string;
+  try {
+    if (hasCloudinaryConfig()) {
+      imageUrl = await uploadToCloudinary(req.file, id);
+    } else {
+      if (process.env.VERCEL) {
+        res.status(503).json({ error: "Cloudinary precisa ser configurado para uploads em producao" });
+        return;
+      }
+      imageUrl = saveLocalUpload(req.file);
+    }
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : "Image upload failed" });
+    return;
+  }
+
   const [p] = await db.update(productsTable).set({ imageUrl }).where(eq(productsTable.id, id)).returning();
-  if (!p) { res.status(404).json({ error: "Product not found" }); return; }
   res.json(formatProduct(p as Record<string, unknown>));
 });
 
