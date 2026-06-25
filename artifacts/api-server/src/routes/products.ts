@@ -81,6 +81,13 @@ function saveLocalUpload(file: Express.Multer.File) {
   return `/api/uploads/${filename}`;
 }
 
+function saveInlineImage(file: Express.Multer.File) {
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error("A foto precisa ter no maximo 2 MB enquanto o Cloudinary nao estiver configurado");
+  }
+  return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+}
+
 function formatProduct(p: Record<string, unknown>, catName?: string | null) {
   const price = Number(p.price);
   const cost = p.cost ? Number(p.cost) : null;
@@ -207,11 +214,7 @@ router.post("/products/:id/image", upload.single("image"), async (req, res): Pro
     if (hasCloudinaryConfig()) {
       imageUrl = await uploadToCloudinary(req.file, id);
     } else {
-      if (process.env.VERCEL) {
-        res.status(503).json({ error: "Cloudinary precisa ser configurado para uploads em producao" });
-        return;
-      }
-      imageUrl = saveLocalUpload(req.file);
+      imageUrl = process.env.VERCEL ? saveInlineImage(req.file) : saveLocalUpload(req.file);
     }
   } catch (error) {
     res.status(502).json({ error: error instanceof Error ? error.message : "Image upload failed" });
