@@ -142,11 +142,19 @@ export default function Products() {
       const fd = new FormData();
       fd.append("image", file);
       const res = await fetch(`/api/products/${id}/image`, { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? "Upload failed");
+      }
       await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
       toast({ title: "Foto atualizada!" });
-    } catch {
-      toast({ title: "Erro ao enviar foto", variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro ao enviar foto";
+      toast({
+        title: message.includes("Cloudinary") ? "Configure o Cloudinary" : "Erro ao enviar foto",
+        description: message.includes("Cloudinary") ? "As credenciais de upload ainda nao estao na Vercel." : message,
+        variant: "destructive",
+      });
     } finally {
       setUploadingId(null);
       uploadForId.current = null;
