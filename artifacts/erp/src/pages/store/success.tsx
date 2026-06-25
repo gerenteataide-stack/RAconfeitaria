@@ -46,7 +46,7 @@ export default function StoreSuccess() {
           <li className="flex gap-3">
             <span className="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold"
               style={{ backgroundColor: "#7B2E68" }}>1</span>
-            Vamos confirmar o pedido por WhatsApp e acompanhar o pagamento.
+            Vamos confirmar o pedido por WhatsApp e enviar as instrucoes para pagamento pelo PicPay.
           </li>
           <li className="flex gap-3">
             <span className="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold"

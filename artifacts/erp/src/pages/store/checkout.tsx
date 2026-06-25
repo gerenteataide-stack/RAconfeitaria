@@ -48,8 +48,6 @@ export default function StoreCheckout() {
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
-    customerEmail: "",
-    customerDocument: "",
     deliveryType: "pickup" as "pickup" | "delivery",
     deliveryAddress: "",
     neighborhood: "",
@@ -81,7 +79,7 @@ export default function StoreCheckout() {
       toast({ title: "Carrinho vazio", description: "Adicione produtos antes de finalizar.", variant: "destructive" });
       return;
     }
-    if (!form.customerName || !form.customerPhone || !form.customerEmail || !form.customerDocument || !form.deliveryDate) {
+    if (!form.customerName || !form.customerPhone || !form.deliveryDate) {
       toast({ title: "Preencha os campos obrigatÃ³rios", variant: "destructive" });
       return;
     }
@@ -112,25 +110,6 @@ export default function StoreCheckout() {
         },
       });
       clear();
-      try {
-        const payment = await apiRequest<{ configured: boolean; checkoutUrl?: string | null }>(
-          "/api/payments/picpay/checkout",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              orderId: order.id,
-              buyerEmail: form.customerEmail,
-              buyerDocument: form.customerDocument,
-            }),
-          },
-        );
-        if (payment.configured && payment.checkoutUrl) {
-          window.location.href = payment.checkoutUrl;
-          return;
-        }
-      } catch {
-        // O pedido ja foi registrado; o pagamento pode ser combinado manualmente.
-      }
       navigate(`/cardapio/sucesso?id=${order.id}`);
     } catch {
       toast({ title: "Erro ao enviar pedido", description: "Tente novamente ou entre em contato.", variant: "destructive" });
@@ -177,16 +156,6 @@ export default function StoreCheckout() {
                   <Label htmlFor="phone">WhatsApp *</Label>
                   <Input id="phone" placeholder="(11) 99999-9999" value={form.customerPhone}
                     onChange={(e) => handleChange("customerPhone", e.target.value)} className="mt-1" required />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input id="email" type="email" placeholder="seuemail@exemplo.com" value={form.customerEmail}
-                    onChange={(e) => handleChange("customerEmail", e.target.value)} className="mt-1" required />
-                </div>
-                <div>
-                  <Label htmlFor="document">CPF *</Label>
-                  <Input id="document" placeholder="000.000.000-00" value={form.customerDocument}
-                    onChange={(e) => handleChange("customerDocument", e.target.value)} className="mt-1" required />
                 </div>
               </div>
             </div>
@@ -316,7 +285,7 @@ export default function StoreCheckout() {
                 {createOrder.isPending ? "Enviando..." : "Confirmar pedido â†’"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                O pagamento sera aberto pelo PicPay apos confirmar o pedido.
+                O pagamento sera combinado pelo WhatsApp. Voce pode pagar pelo PicPay.
               </p>
             </div>
           </div>
