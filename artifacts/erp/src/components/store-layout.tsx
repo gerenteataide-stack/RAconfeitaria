@@ -26,7 +26,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
   const businessName = settings?.businessName ?? "Rochelle Ataide";
   const businessSubtitle = settings?.businessSubtitle ?? "Confeitaria Artesanal";
   const businessDescription = settings?.businessDescription ?? "Confeitaria artesanal feita com amor e dedicação.";
-  const whatsappNumber = settings?.whatsappNumber || "(11) 98765-4321";
+  const whatsappNumber = settings?.whatsappNumber?.trim() ?? "";
   const instagram = settings?.instagram ?? "@rochelleataideconfeitaria";
   const location = settings?.location ?? "São Paulo, SP";
   const serviceNote = settings?.serviceNote ?? "Atendimento com hora marcada";
@@ -85,7 +85,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <h3 className="mb-2 font-semibold text-foreground">Contato</h3>
-            <div className="mb-1 flex items-center gap-2"><Phone className="h-3 w-3" />{whatsappNumber}</div>
+            {whatsappNumber && <div className="mb-1 flex items-center gap-2"><Phone className="h-3 w-3" />{whatsappNumber}</div>}
             <div className="flex items-center gap-2"><Instagram className="h-3 w-3" />{instagram}</div>
           </div>
           <div>

@@ -11,6 +11,7 @@ type BusinessSettings = {
   cashbackPercent: number;
   loyaltyPointsPerCurrency: number;
   whatsappNumber: string;
+  pixKey: string;
   privacyPolicyUrl: string;
   businessName: string;
   businessSubtitle: string;
@@ -25,6 +26,7 @@ const empty = {
   businessSubtitle: "",
   businessDescription: "",
   whatsappNumber: "",
+  pixKey: "",
   instagram: "",
   location: "",
   serviceNote: "",
@@ -47,6 +49,7 @@ export default function Settings() {
         businessSubtitle: data.businessSubtitle ?? "",
         businessDescription: data.businessDescription ?? "",
         whatsappNumber: data.whatsappNumber ?? "",
+        pixKey: data.pixKey ?? "",
         instagram: data.instagram ?? "",
         location: data.location ?? "",
         serviceNote: data.serviceNote ?? "",
@@ -75,7 +78,7 @@ export default function Settings() {
     <div className="flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="font-serif text-3xl font-bold" style={{ color: "#7B2E68" }}>Configurações</h1>
-        <p className="text-sm text-muted-foreground">Preferências comerciais, contato e LGPD.</p>
+        <p className="text-sm text-muted-foreground">Preferências comerciais, contato, pagamento e LGPD.</p>
       </div>
 
       <section className="rounded-lg border bg-white p-5 shadow-sm">
@@ -104,9 +107,13 @@ export default function Settings() {
               <Input placeholder="(11) 99999-9999" value={form.whatsappNumber} onChange={(event) => setField("whatsappNumber", event.target.value)} />
             </div>
             <div>
-              <Label>Instagram</Label>
-              <Input placeholder="@usuario" value={form.instagram} onChange={(event) => setField("instagram", event.target.value)} />
+              <Label>Chave Pix</Label>
+              <Input placeholder="CPF, CNPJ, email, telefone ou chave aleatória" value={form.pixKey} onChange={(event) => setField("pixKey", event.target.value)} />
             </div>
+          </div>
+          <div>
+            <Label>Instagram</Label>
+            <Input placeholder="@usuario" value={form.instagram} onChange={(event) => setField("instagram", event.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
