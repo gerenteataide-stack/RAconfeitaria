@@ -16,6 +16,11 @@ const CheckoutBody = z.object({
   orderId: z.coerce.number().int().positive(),
 });
 
+const PicPayCheckoutBody = CheckoutBody.extend({
+  buyerEmail: z.string().email(),
+  buyerDocument: z.string().min(11),
+});
+
 type MercadoPagoPreferenceResponse = {
   id: string;
   init_point?: string;
@@ -29,6 +34,17 @@ type MercadoPagoPaymentResponse = {
   external_reference?: string;
   transaction_amount?: number;
   date_approved?: string;
+};
+
+type PicPayPaymentResponse = {
+  referenceId?: string;
+  paymentUrl?: string;
+  qrcode?: {
+    content?: string;
+    base64?: string;
+  };
+  status?: string;
+  authorizationId?: string;
 };
 
 function publicBaseUrl(req: Request) {
@@ -45,13 +61,13 @@ function formatPayment(row: typeof paymentsTable.$inferSelect) {
   };
 }
 
-async function markOrderPaid(orderId: number, payment: MercadoPagoPaymentResponse) {
-  const paidAt = payment.date_approved ? new Date(payment.date_approved) : new Date();
+async function markOrderPaid(orderId: number, payment: MercadoPagoPaymentResponse | PicPayPaymentResponse, provider: string) {
+  const paidAt = "date_approved" in payment && payment.date_approved ? new Date(payment.date_approved) : new Date();
   await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, orderId));
   await db.update(paymentsTable)
     .set({
-      status: payment.status,
-      providerPaymentId: String(payment.id),
+      status: payment.status ?? "paid",
+      providerPaymentId: "id" in payment ? String(payment.id) : payment.authorizationId ?? null,
       rawPayload: JSON.stringify(payment),
       paidAt,
     })
@@ -67,7 +83,7 @@ async function markOrderPaid(orderId: number, payment: MercadoPagoPaymentRespons
   if (existing.length === 0) {
     await db.insert(financialEntriesTable).values({
       type: "receivable",
-      description: `Pedido #${orderId} - Mercado Pago`,
+      description: `Pedido #${orderId} - ${provider}`,
       amount: String(order.total),
       dueDate: today,
       paidAt: today,
@@ -84,6 +100,111 @@ router.get("/payments/order/:orderId", requireAuth, requirePermission("financial
   if (!Number.isFinite(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
   const rows = await db.select().from(paymentsTable).where(eq(paymentsTable.orderId, orderId));
   res.json(rows.map(formatPayment));
+});
+
+router.post("/payments/picpay/checkout", async (req, res): Promise<void> => {
+  const parsed = PicPayCheckoutBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, parsed.data.orderId));
+  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+
+  const amount = Number(order.total);
+  const externalReference = `order:${order.id}`;
+  const picpayToken = process.env.PICPAY_TOKEN;
+  if (!picpayToken) {
+    const [payment] = await db.insert(paymentsTable).values({
+      orderId: order.id,
+      provider: "picpay",
+      status: "configuration_required",
+      amount: String(amount),
+      externalReference,
+      rawPayload: JSON.stringify({ reason: "PICPAY_TOKEN missing" }),
+    }).returning();
+    await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+    res.status(202).json({
+      configured: false,
+      message: "PicPay ainda nao esta configurado.",
+      payment: formatPayment(payment),
+    });
+    return;
+  }
+
+  const baseUrl = publicBaseUrl(req);
+  const names = (order.customerName ?? "Cliente").trim().split(/\s+/);
+  const firstName = names[0] ?? "Cliente";
+  const lastName = names.slice(1).join(" ") || "Confeitaria";
+  const phoneDigits = (order.customerPhone ?? "").replace(/\D/g, "");
+  const apiBase = process.env.PICPAY_API_BASE || "https://appws.picpay.com/ecommerce/public";
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
+
+  const response = await fetch(`${apiBase}/payments`, {
+    method: "POST",
+    headers: {
+      "x-picpay-token": picpayToken,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      referenceId: externalReference,
+      callbackUrl: `${baseUrl}/api/payments/picpay/webhook`,
+      returnUrl: `${baseUrl}/cardapio/sucesso?id=${order.id}&payment=pending`,
+      value: amount,
+      expiresAt,
+      buyer: {
+        firstName,
+        lastName,
+        document: parsed.data.buyerDocument.replace(/\D/g, ""),
+        email: parsed.data.buyerEmail,
+        phone: phoneDigits,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    res.status(502).json({ error: "PicPay payment creation failed", detail: text });
+    return;
+  }
+
+  const picpay = await response.json() as PicPayPaymentResponse;
+  const [payment] = await db.insert(paymentsTable).values({
+    orderId: order.id,
+    provider: "picpay",
+    status: picpay.status ?? "pending",
+    amount: String(amount),
+    paymentUrl: picpay.paymentUrl ?? null,
+    externalReference,
+    providerPreferenceId: picpay.referenceId ?? externalReference,
+    rawPayload: JSON.stringify(picpay),
+  }).returning();
+  await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+
+  res.status(201).json({
+    configured: true,
+    checkoutUrl: picpay.paymentUrl ?? null,
+    qrCode: picpay.qrcode ?? null,
+    payment: formatPayment(payment),
+  });
+});
+
+router.post("/payments/picpay/webhook", async (req, res): Promise<void> => {
+  const referenceId = String(req.body?.referenceId ?? req.query.referenceId ?? "");
+  const match = /^order:(\d+)$/.exec(referenceId);
+  if (!match) { res.json({ ok: true }); return; }
+
+  const status = String(req.body?.status ?? "").toLowerCase();
+  const orderId = Number(match[1]);
+  const payload = req.body as PicPayPaymentResponse;
+
+  if (["paid", "completed", "approved"].includes(status)) {
+    await markOrderPaid(orderId, { ...payload, status: status || "paid" }, "PicPay");
+  } else if (status) {
+    await db.update(paymentsTable)
+      .set({ status, rawPayload: JSON.stringify(req.body) })
+      .where(eq(paymentsTable.orderId, orderId));
+  }
+
+  res.json({ ok: true });
 });
 
 router.post("/payments/checkout", async (req, res): Promise<void> => {
@@ -185,7 +306,7 @@ router.post("/payments/webhook", async (req, res): Promise<void> => {
   const payment = await response.json() as MercadoPagoPaymentResponse;
   const match = /^order:(\d+)$/.exec(payment.external_reference ?? "");
   if (match && payment.status === "approved") {
-    await markOrderPaid(Number(match[1]), payment);
+    await markOrderPaid(Number(match[1]), payment, "Mercado Pago");
   } else if (match) {
     await db.update(paymentsTable)
       .set({
