@@ -11,6 +11,7 @@ import stockRouter from "./stock";
 import recipesRouter from "./recipes";
 import financialRouter from "./financial";
 import operationsRouter from "./operations";
+import paymentsRouter from "./payments";
 import { requireAuth, requirePermission } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -41,5 +42,6 @@ router.use(recipesRouter);
 router.use(protectPrefix("/financial", "financial"));
 router.use(financialRouter);
 router.use(operationsRouter);
+router.use(paymentsRouter);
 
 export default router;

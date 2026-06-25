@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Truck, Store, CalendarDays, ShoppingBag, Minus, Plus } from "lucide-react";
@@ -80,15 +80,15 @@ export default function StoreCheckout() {
       return;
     }
     if (!form.customerName || !form.customerPhone || !form.deliveryDate) {
-      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      toast({ title: "Preencha os campos obrigatÃ³rios", variant: "destructive" });
       return;
     }
     if (form.deliveryType === "delivery" && (!form.deliveryAddress || !form.neighborhood)) {
-      toast({ title: "Informe o endere�o e o bairro de entrega", variant: "destructive" });
+      toast({ title: "Informe o endereço e o bairro de entrega", variant: "destructive" });
       return;
     }
     if (form.deliveryType === "delivery" && deliveryZones.length > 0 && !selectedZone) {
-      toast({ title: "Bairro ou CEP fora da �rea de entrega", variant: "destructive" });
+      toast({ title: "Bairro ou CEP fora da área de entrega", variant: "destructive" });
       return;
     }
     try {
@@ -110,6 +110,18 @@ export default function StoreCheckout() {
         },
       });
       clear();
+      try {
+        const payment = await apiRequest<{ configured: boolean; checkoutUrl?: string | null }>(
+          "/api/payments/checkout",
+          { method: "POST", body: JSON.stringify({ orderId: order.id }) },
+        );
+        if (payment.configured && payment.checkoutUrl) {
+          window.location.href = payment.checkoutUrl;
+          return;
+        }
+      } catch {
+        // O pedido ja foi registrado; o pagamento pode ser combinado manualmente.
+      }
       navigate(`/cardapio/sucesso?id=${order.id}`);
     } catch {
       toast({ title: "Erro ao enviar pedido", description: "Tente novamente ou entre em contato.", variant: "destructive" });
@@ -123,7 +135,7 @@ export default function StoreCheckout() {
         <h2 className="text-xl font-semibold mb-2">Carrinho vazio</h2>
         <p className="text-muted-foreground mb-6">Adicione produtos antes de finalizar.</p>
         <Link href="/cardapio">
-          <Button style={{ backgroundColor: "#7B2E68" }}>Ver cardápio</Button>
+          <Button style={{ backgroundColor: "#7B2E68" }}>Ver cardÃ¡pio</Button>
         </Link>
       </div>
     );
@@ -133,7 +145,7 @@ export default function StoreCheckout() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <Link href="/cardapio">
         <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Voltar ao cardápio
+          <ArrowLeft className="w-4 h-4" /> Voltar ao cardÃ¡pio
         </button>
       </Link>
 
@@ -169,7 +181,7 @@ export default function StoreCheckout() {
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${form.deliveryType === "pickup" ? "border-[#7B2E68] bg-pink-50" : "border-pink-100 hover:border-pink-200"}`}>
                   <Store className="w-6 h-6" style={{ color: form.deliveryType === "pickup" ? "#7B2E68" : undefined }} />
                   <span className="font-medium text-sm">Retirada</span>
-                  <span className="text-xs text-muted-foreground text-center">Grátis · Combinar local</span>
+                  <span className="text-xs text-muted-foreground text-center">GrÃ¡tis Â· Combinar local</span>
                 </button>
                 <button type="button"
                   onClick={() => handleChange("deliveryType", "delivery")}
@@ -182,8 +194,8 @@ export default function StoreCheckout() {
 
               {form.deliveryType === "delivery" && (
                 <div className="mt-4">
-                  <Label htmlFor="address">Endereço de entrega *</Label>
-                  <Input id="address" placeholder="Rua, número, bairro" value={form.deliveryAddress}
+                  <Label htmlFor="address">EndereÃ§o de entrega *</Label>
+                  <Input id="address" placeholder="Rua, nÃºmero, bairro" value={form.deliveryAddress}
                     onChange={(e) => handleChange("deliveryAddress", e.target.value)} className="mt-1" />
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div>
@@ -198,7 +210,7 @@ export default function StoreCheckout() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    {selectedZone ? `Entrega ${selectedZone.name}: ${fmt(selectedZone.fee)}` : deliveryZones.length > 0 ? "Informe bairro ou CEP para calcular a taxa." : "Nenhuma taxa cadastrada. A entrega será combinada."}
+                    {selectedZone ? `Entrega ${selectedZone.name}: ${fmt(selectedZone.fee)}` : deliveryZones.length > 0 ? "Informe bairro ou CEP para calcular a taxa." : "Nenhuma taxa cadastrada. A entrega serÃ¡ combinada."}
                   </p>
                 </div>
               )}
@@ -214,13 +226,13 @@ export default function StoreCheckout() {
                 <Input id="date" type="date" value={form.deliveryDate}
                   min={new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0]}
                   onChange={(e) => handleChange("deliveryDate", e.target.value)} className="mt-1" required />
-                <p className="text-xs text-muted-foreground mt-1">Prazo mínimo de 2 dias para produção artesanal.</p>
+                <p className="text-xs text-muted-foreground mt-1">Prazo mÃ­nimo de 2 dias para produÃ§Ã£o artesanal.</p>
               </div>
             </div>
 
             {/* Notes */}
             <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
-              <h2 className="font-semibold mb-4">Observações</h2>
+              <h2 className="font-semibold mb-4">ObservaÃ§Ãµes</h2>
               <Textarea
                 placeholder="Ex: Escrita no bolo, alergias, recheio preferido..."
                 value={form.notes}
@@ -253,7 +265,7 @@ export default function StoreCheckout() {
                           <Plus className="w-2.5 h-2.5" />
                         </button>
                         <button type="button" onClick={() => removeItem(item.productId)}
-                          className="text-xs text-muted-foreground hover:text-destructive ml-1">✕</button>
+                          className="text-xs text-muted-foreground hover:text-destructive ml-1">âœ•</button>
                       </div>
                     </div>
                     <span className="text-sm font-semibold shrink-0" style={{ color: "#7B2E68" }}>{fmt(item.subtotal)}</span>
@@ -269,7 +281,7 @@ export default function StoreCheckout() {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Frete</span>
-                  <span>{form.deliveryType === "delivery" ? fmt(deliveryFee) : "Grátis"}</span>
+                  <span>{form.deliveryType === "delivery" ? fmt(deliveryFee) : "GrÃ¡tis"}</span>
                 </div>
               </div>
 
@@ -282,10 +294,10 @@ export default function StoreCheckout() {
 
               <Button type="submit" className="w-full py-5 text-base gap-2" style={{ backgroundColor: "#7B2E68" }}
                 disabled={createOrder.isPending}>
-                {createOrder.isPending ? "Enviando..." : "Confirmar pedido →"}
+                {createOrder.isPending ? "Enviando..." : "Confirmar pedido â†’"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                O pagamento é combinado via WhatsApp após confirmação.
+                O pagamento Ã© combinado via WhatsApp apÃ³s confirmaÃ§Ã£o.
               </p>
             </div>
           </div>
@@ -294,5 +306,7 @@ export default function StoreCheckout() {
     </div>
   );
 }
+
+
 
 
