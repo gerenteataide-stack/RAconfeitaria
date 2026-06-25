@@ -1,19 +1,36 @@
-import { useListOrders, useUpdateOrderStatus } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Clock, MapPin, Package, Check, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Check,
+  Clock,
+  Filter,
+  MapPin,
+  Package,
+  Plus,
+  Search,
+  Truck,
+  X,
+} from "lucide-react";
+import {
+  getListOrdersQueryKey,
+  useListOrders,
+  useUpdateOrderStatus,
+} from "@workspace/api-client-react";
+import type { Order, OrderStatusUpdateStatus } from "@workspace/api-client-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
 const STATUS_CONFIG = {
   new: { label: "Novo", color: "bg-blue-100 text-blue-800 border-blue-200", icon: Package },
-  awaiting_payment: { label: "Aguardando Pagto", color: "bg-amber-100 text-amber-800 border-amber-200", icon: Clock },
+  awaiting_payment: { label: "Aguardando pagamento", color: "bg-amber-100 text-amber-800 border-amber-200", icon: Clock },
   paid: { label: "Pago", color: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: Check },
-  production: { label: "Em Produção", color: "bg-purple-100 text-purple-800 border-purple-200", icon: Clock },
+  production: { label: "Em produção", color: "bg-purple-100 text-purple-800 border-purple-200", icon: Clock },
   ready: { label: "Pronto", color: "bg-indigo-100 text-indigo-800 border-indigo-200", icon: Package },
-  out_for_delivery: { label: "Saiu Entrega", color: "bg-orange-100 text-orange-800 border-orange-200", icon: MapPin },
+  out_for_delivery: { label: "Saiu para entrega", color: "bg-orange-100 text-orange-800 border-orange-200", icon: Truck },
   delivered: { label: "Entregue", color: "bg-green-100 text-green-800 border-green-200", icon: Check },
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800 border-red-200", icon: X },
 };
@@ -23,97 +40,142 @@ const KANBAN_COLUMNS = [
   { id: "paid", label: "Pagos" },
   { id: "production", label: "Produção" },
   { id: "ready", label: "Prontos" },
-  { id: "out_for_delivery", label: "Em Entrega" },
+  { id: "out_for_delivery", label: "Em entrega" },
+  { id: "delivered", label: "Entregues" },
+  { id: "cancelled", label: "Cancelados" },
 ];
 
-export default function Orders() {
-  const { data: orders, isLoading } = useListOrders();
+function nextActions(order: Order): Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> {
+  const actions: Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> = [];
+  if (order.status === "new" || order.status === "awaiting_payment") actions.push({ label: "Marcar pago", status: "paid" });
+  if (order.status === "paid") actions.push({ label: "Produção", status: "production" });
+  if (order.status === "production") actions.push({ label: "Pronto", status: "ready" });
+  if (order.status === "ready" && order.deliveryType === "delivery") actions.push({ label: "Saiu", status: "out_for_delivery", variant: "outline" });
+  if (order.status === "ready" || order.status === "out_for_delivery") actions.push({ label: "Entregue", status: "delivered" });
+  if (order.status !== "cancelled" && order.status !== "delivered") actions.push({ label: "Cancelar", status: "cancelled", variant: "destructive" });
+  return actions;
+}
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+export default function Orders() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: orders = [], isLoading } = useListOrders();
+  const updateStatus = useUpdateOrderStatus({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        toast({ title: "Pedido atualizado" });
+      },
+      onError: () => toast({ title: "Erro ao atualizar pedido", variant: "destructive" }),
+    },
+  });
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
   const getColumnOrders = (statusId: string) => {
-    if (!orders) return [];
-    if (statusId === "new") return orders.filter(o => o.status === "new" || o.status === "awaiting_payment");
-    return orders.filter(o => o.status === statusId);
+    if (statusId === "new") return orders.filter((order) => order.status === "new" || order.status === "awaiting_payment");
+    return orders.filter((order) => order.status === statusId);
   };
 
+  function changeStatus(order: Order, status: OrderStatusUpdateStatus) {
+    updateStatus.mutate({ id: order.id, data: { status } });
+  }
+
   return (
-    <div className="flex flex-col gap-6 h-[calc(100vh-3rem)]">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex h-[calc(100vh-3rem)] flex-col gap-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-primary">Pedidos</h1>
-          <p className="text-muted-foreground mt-1">Gerencie o fluxo de encomendas do seu ateliê.</p>
+          <h1 className="font-serif text-3xl font-bold text-primary">Pedidos</h1>
+          <p className="mt-1 text-muted-foreground">Gerencie o fluxo de encomendas do seu ateliê.</p>
         </div>
         <Link href="/orders/new">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6">
+          <Button className="rounded-full bg-primary px-6 text-primary-foreground hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" />
-            Novo Pedido
+            Novo pedido
           </Button>
         </Link>
       </div>
 
-      <div className="flex items-center gap-4 bg-card p-2 rounded-xl shadow-sm border border-border">
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-2 shadow-sm">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por cliente ou ID..." 
-            className="pl-9 border-none bg-transparent shadow-none focus-visible:ring-0"
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente ou ID..."
+            className="border-none bg-transparent pl-9 shadow-none focus-visible:ring-0"
           />
         </div>
-        <div className="w-px h-6 bg-border mx-2"></div>
+        <div className="mx-2 h-6 w-px bg-border" />
         <Button variant="ghost" size="sm" className="text-muted-foreground">
-          <Filter className="h-4 w-4 mr-2" />
+          <Filter className="mr-2 h-4 w-4" />
           Filtros
         </Button>
       </div>
 
       <div className="flex-1 overflow-x-auto pb-4">
-        <div className="flex gap-4 h-full min-w-max">
+        <div className="flex h-full min-w-max gap-4">
           {isLoading ? (
-            <div className="w-full flex justify-center items-center h-40">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="flex h-40 w-full items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
             </div>
           ) : (
-            KANBAN_COLUMNS.map(col => {
-              const colOrders = getColumnOrders(col.id);
+            KANBAN_COLUMNS.map((column) => {
+              const columnOrders = getColumnOrders(column.id);
               return (
-                <div key={col.id} className="w-80 flex flex-col bg-muted/50 rounded-xl border border-border overflow-hidden">
-                  <div className="p-3 border-b border-border bg-card flex items-center justify-between">
-                    <h3 className="font-semibold text-sm text-foreground">{col.label}</h3>
+                <div key={column.id} className="flex w-80 flex-col overflow-hidden rounded-xl border border-border bg-muted/50">
+                  <div className="flex items-center justify-between border-b border-border bg-card p-3">
+                    <h3 className="text-sm font-semibold text-foreground">{column.label}</h3>
                     <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs font-normal">
-                      {colOrders.length}
+                      {columnOrders.length}
                     </Badge>
                   </div>
-                  <div className="p-3 flex-1 overflow-y-auto flex flex-col gap-3">
-                    {colOrders.map(order => {
+                  <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+                    {columnOrders.map((order) => {
                       const config = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG];
                       return (
-                        <div key={order.id} className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col gap-3 cursor-pointer hover:border-primary/50 transition-colors">
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs font-mono text-muted-foreground">#{order.id.toString().padStart(4, '0')}</span>
-                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${config?.color || ''}`}>
+                        <div key={order.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/50">
+                          <div className="flex items-start justify-between">
+                            <span className="font-mono text-xs text-muted-foreground">#{order.id.toString().padStart(4, "0")}</span>
+                            <Badge variant="outline" className={`border px-1.5 py-0 text-[10px] ${config?.color || ""}`}>
                               {config?.label || order.status}
                             </Badge>
                           </div>
-                          
+
                           <div>
-                            <h4 className="font-medium text-sm text-foreground line-clamp-1">{order.customerName || "Cliente não informado"}</h4>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Entrega: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}
+                            <h4 className="line-clamp-1 text-sm font-medium text-foreground">{order.customerName || "Cliente não informado"}</h4>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Data: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}
                               {order.deliveryTime && ` às ${order.deliveryTime}`}
                             </p>
                           </div>
-                          
-                          <div className="flex items-center justify-between mt-1 pt-3 border-t border-border">
-                            <span className="text-xs text-muted-foreground">{order.deliveryType === 'delivery' ? 'Delivery' : 'Retirada'}</span>
+
+                          <div className="mt-1 flex items-center justify-between border-t border-border pt-3">
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              {order.deliveryType === "delivery" ? <Truck className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                              {order.deliveryType === "delivery" ? "Entrega" : "Retirada"}
+                            </span>
                             <span className="text-sm font-semibold text-primary">{formatCurrency(order.total)}</span>
                           </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {nextActions(order).map((action) => (
+                              <Button
+                                key={action.status}
+                                size="sm"
+                                variant={action.variant === "destructive" ? "destructive" : action.variant ?? "outline"}
+                                onClick={() => changeStatus(order, action.status)}
+                                disabled={updateStatus.isPending}
+                                className="h-8 text-xs"
+                              >
+                                {action.label}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
-                      )
+                      );
                     })}
-                    {colOrders.length === 0 && (
-                      <div className="flex-1 flex items-center justify-center text-center p-4">
+                    {columnOrders.length === 0 && (
+                      <div className="flex flex-1 items-center justify-center p-4 text-center">
                         <p className="text-xs text-muted-foreground">Nenhum pedido</p>
                       </div>
                     )}

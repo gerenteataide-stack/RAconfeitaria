@@ -66,7 +66,7 @@ export default function StoreCatalog() {
           </Badge>
           <div className="flex items-center justify-center mb-5">
             <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-xl ring-4 ring-white/30">
-              <img src="/logo.png" alt="Rochele Ataide" className="w-28 h-28 object-contain" />
+              <img src="/logo.png" alt="Rochelle Ataide" className="w-28 h-28 object-contain" />
             </div>
           </div>
           <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-3">

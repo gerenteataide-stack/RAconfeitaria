@@ -20,6 +20,27 @@ const CreateUserBody = z.object({
   active: z.boolean().optional().default(true),
 });
 
+const UpdateUserBody = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(8).optional(),
+  role: z.enum(["owner", "manager", "finance", "production", "stock", "attendant"]).optional(),
+  active: z.boolean().optional(),
+});
+
+function formatUser(user: typeof usersTable.$inferSelect) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.roleName,
+    roleLabel: ROLE_LABELS[user.roleName] ?? user.roleName,
+    active: user.active,
+    lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
 async function ensureAuthDefaults() {
   for (const [name, label] of Object.entries(ROLE_LABELS)) {
     await db.insert(rolesTable).values({ name, label }).onConflictDoUpdate({
@@ -89,16 +110,7 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
 router.get("/auth/users", requireAuth, async (req, res): Promise<void> => {
   if (!req.user?.permissions.includes("*")) { res.status(403).json({ error: "Permission denied" }); return; }
   const rows = await db.select().from(usersTable).orderBy(usersTable.name);
-  res.json(rows.map((user) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.roleName,
-    roleLabel: ROLE_LABELS[user.roleName] ?? user.roleName,
-    active: user.active,
-    lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
-    createdAt: user.createdAt.toISOString(),
-  })));
+  res.json(rows.map(formatUser));
 });
 
 router.post("/auth/users", requireAuth, async (req, res): Promise<void> => {
@@ -121,6 +133,25 @@ router.post("/auth/users", requireAuth, async (req, res): Promise<void> => {
     roleLabel: ROLE_LABELS[user.roleName] ?? user.roleName,
     active: user.active,
   });
+});
+
+router.patch("/auth/users/:id", requireAuth, async (req, res): Promise<void> => {
+  if (!req.user?.permissions.includes("*")) { res.status(403).json({ error: "Permission denied" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const parsed = UpdateUserBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const updateData: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.email !== undefined) updateData.email = parsed.data.email.toLowerCase();
+  if (parsed.data.role !== undefined) updateData.roleName = parsed.data.role;
+  if (parsed.data.active !== undefined) updateData.active = parsed.data.active;
+  if (parsed.data.password) updateData.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  const [user] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  res.json(formatUser(user));
 });
 
 export default router;

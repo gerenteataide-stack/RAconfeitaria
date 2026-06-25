@@ -100,9 +100,11 @@ export default function Products() {
     try {
       if (editProduct) {
         await updateProduct.mutateAsync({ id: editProduct.id, data: payload });
+        await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
         toast({ title: "Produto atualizado!" });
       } else {
         await createProduct.mutateAsync({ data: payload });
+        await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
         toast({ title: "Produto criado!" });
       }
       setDialogOpen(false);
@@ -115,6 +117,7 @@ export default function Products() {
     if (!deleteTarget) return;
     try {
       await deleteProduct.mutateAsync({ id: deleteTarget.id });
+      await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
       toast({ title: "Produto removido" });
       setDeleteTarget(null);
     } catch {
@@ -124,6 +127,7 @@ export default function Products() {
 
   async function handleToggleAvailable(p: Product) {
     await updateProduct.mutateAsync({ id: p.id, data: { available: !p.available } });
+    await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
   }
 
   const triggerUpload = useCallback((productId: number) => {

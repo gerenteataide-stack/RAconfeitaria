@@ -46,6 +46,12 @@ const SettingsBody = z.object({
   loyaltyPointsPerCurrency: z.coerce.number().min(0).optional(),
   whatsappNumber: z.string().optional(),
   privacyPolicyUrl: z.string().optional(),
+  businessName: z.string().optional(),
+  businessSubtitle: z.string().optional(),
+  businessDescription: z.string().optional(),
+  instagram: z.string().optional(),
+  location: z.string().optional(),
+  serviceNote: z.string().optional(),
 });
 
 function zone(row: typeof deliveryZonesTable.$inferSelect) {
@@ -192,15 +198,29 @@ router.patch("/notifications/:id/read", requireAuth, requirePermission("notifica
   res.json(notification(row));
 });
 
-router.get("/settings/business", requireAuth, requirePermission("*"), async (_req, res): Promise<void> => {
+async function readBusinessSettings() {
   const rows = await db.select().from(settingsTable);
   const data = Object.fromEntries(rows.map((row) => [row.key, row.value]));
-  res.json({
+  return {
     cashbackPercent: Number(data.cashbackPercent ?? 0),
     loyaltyPointsPerCurrency: Number(data.loyaltyPointsPerCurrency ?? 1),
     whatsappNumber: data.whatsappNumber ?? "",
     privacyPolicyUrl: data.privacyPolicyUrl ?? "",
-  });
+    businessName: data.businessName ?? "Rochelle Ataide",
+    businessSubtitle: data.businessSubtitle ?? "Confeitaria Artesanal",
+    businessDescription: data.businessDescription ?? "Confeitaria artesanal feita com amor e dedicacao.",
+    instagram: data.instagram ?? "@rochelleataideconfeitaria",
+    location: data.location ?? "Sao Paulo, SP",
+    serviceNote: data.serviceNote ?? "Atendimento com hora marcada",
+  };
+}
+
+router.get("/settings/public", async (_req, res): Promise<void> => {
+  res.json(await readBusinessSettings());
+});
+
+router.get("/settings/business", requireAuth, requirePermission("*"), async (_req, res): Promise<void> => {
+  res.json(await readBusinessSettings());
 });
 
 router.put("/settings/business", requireAuth, requirePermission("*"), async (req, res): Promise<void> => {
