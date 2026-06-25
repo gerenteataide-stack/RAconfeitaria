@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
+import os from "os";
 import path from "path";
 import fs from "fs";
 import { db, productsTable, categoriesTable } from "@workspace/db";
@@ -13,7 +14,10 @@ import {
   DeleteProductParams,
 } from "@workspace/api-zod";
 
-const uploadsDir = path.join(process.cwd(), "uploads");
+const uploadsDir = path.join(
+  process.env.VERCEL ? os.tmpdir() : process.cwd(),
+  "uploads",
+);
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 const storage = multer.diskStorage({

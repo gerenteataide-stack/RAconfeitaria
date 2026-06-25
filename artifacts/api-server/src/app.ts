@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import os from "os";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -30,7 +31,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const uploadsDir = path.join(process.cwd(), "uploads");
+const uploadsDir = path.join(
+  process.env.VERCEL ? os.tmpdir() : process.cwd(),
+  "uploads",
+);
 app.use("/api/uploads", express.static(uploadsDir));
 
 app.use("/api", router);
