@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useListRecipes,
   useListProducts,
-  useListStockItems,
   useCreateRecipe,
   useUpdateRecipe,
   useDeleteRecipe,
@@ -11,7 +10,6 @@ import {
   type Recipe,
   type RecipeIngredientInput,
   type Product,
-  type StockItem,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +53,17 @@ type BusinessSettings = {
   }>;
 };
 
+type StockItem = {
+  id: number;
+  name: string;
+  unit: string;
+  quantity: number;
+  minStock: number;
+  unitCost: number;
+  supplier: string | null;
+  isLow: boolean;
+};
+
 function fmtCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -95,7 +104,10 @@ export default function Recipes() {
 
   const { data: recipes = [], isLoading } = useListRecipes();
   const { data: products = [] } = useListProducts();
-  const { data: stockItems = [] } = useListStockItems();
+  const { data: stockItems = [] } = useQuery({
+    queryKey: ["stock"],
+    queryFn: () => apiRequest<StockItem[]>("/api/stock"),
+  });
   const { data: settings } = useQuery({
     queryKey: ["pricing-costs"],
     queryFn: () => apiRequest<BusinessSettings>("/api/settings/costs"),
@@ -376,6 +388,11 @@ export default function Recipes() {
                 <Label>Insumos cadastrados no estoque</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addIngredient}>Adicionar</Button>
               </div>
+              {stockItems.length === 0 && (
+                <div className="rounded-lg border border-dashed border-pink-200 bg-pink-50/50 p-4 text-sm text-muted-foreground">
+                  Nenhum insumo encontrado. Cadastre ingredientes na aba Estoque para usar nesta ficha técnica.
+                </div>
+              )}
 
               <div className="space-y-3">
                 {form.ingredients.map((ingredient, index) => (
