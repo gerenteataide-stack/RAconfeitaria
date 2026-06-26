@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,7 +43,7 @@ type StockMovement = {
 const empty = {
   name: "",
   ingredientType: "comprado",
-  unit: "g",
+  unit: "un",
   packageContent: "1",
   packagePrice: "",
   yieldPercent: "100",
@@ -54,10 +53,6 @@ const empty = {
   supplier: "",
   active: true,
 };
-
-function fmtCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function fmtDate(value: string) {
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -103,30 +98,25 @@ export default function Stock() {
     queryFn: () => apiRequest<StockMovement[]>("/api/stock-movements"),
   });
 
-  const calculatedUnitCost = useMemo(() => {
-    const content = Number(form.packageContent || 0);
-    const price = Number(form.packagePrice || 0);
-    return content > 0 ? price / content : Number(form.unitCost || 0);
-  }, [form.packageContent, form.packagePrice, form.unitCost]);
-
   const stats = useMemo(() => {
     const active = items.filter((item) => item.active);
     const low = active.filter((item) => item.isLow);
-    const totalValue = active.reduce((sum, item) => sum + item.quantity * item.unitCost, 0);
-    return { active: active.length, low: low.length, totalValue };
-  }, [items]);
+    return { active: active.length, low: low.length, movements: movements.length };
+  }, [items, movements.length]);
 
   const save = useMutation({
     mutationFn: () => {
       const body = {
         ...form,
-        packageContent: Number(form.packageContent || 0),
-        packagePrice: Number(form.packagePrice || 0),
-        yieldPercent: Number(form.yieldPercent || 100),
+        ingredientType: "comprado",
+        packageContent: 1,
+        packagePrice: 0,
+        yieldPercent: 100,
         quantity: Number(form.quantity || 0),
         minStock: Number(form.minStock || 0),
-        unitCost: Number(form.unitCost || calculatedUnitCost || 0),
-        supplier: form.supplier || null,
+        unitCost: 0,
+        supplier: null,
+        active: true,
       };
       return editing
         ? apiRequest<StockItem>(`/api/stock/${editing.id}`, { method: "PATCH", body: JSON.stringify(body) })
@@ -188,13 +178,13 @@ export default function Stock() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-serif text-3xl font-bold text-primary">Estoque</h1>
-        <p className="text-sm text-muted-foreground">Cadastro de itens, controle de entrada e saída, custo unitário e estoque mínimo.</p>
+        <p className="text-sm text-muted-foreground">Cadastro simples de produtos, unidade de medida, saldo e movimentações de entrada e saída.</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Itens ativos</p><p className="text-2xl font-semibold">{stats.active}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Estoque crítico</p><p className="text-2xl font-semibold text-red-600">{stats.low}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Valor estimado</p><p className="text-2xl font-semibold">{fmtCurrency(stats.totalValue)}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Movimentações</p><p className="text-2xl font-semibold">{stats.movements}</p></CardContent></Card>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -220,19 +210,17 @@ export default function Stock() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold">{item.name}</h2>
-                      <Badge variant="outline">{item.ingredientType}</Badge>
                       {item.isLow && <Badge variant="destructive">Crítico</Badge>}
                       {!item.active && <Badge variant="secondary">Inativo</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Fornecedor: {item.supplier || "-"}{item.createdAt ? ` · Cadastro em ${fmtDate(item.createdAt)}` : ""}
+                      Unidade: {item.unit}{item.createdAt ? ` · Cadastro em ${fmtDate(item.createdAt)}` : ""}
                     </p>
                   </div>
                   <div><p className="text-xs text-muted-foreground">Saldo</p><p className="font-semibold">{item.quantity} {item.unit}</p></div>
                   <div><p className="text-xs text-muted-foreground">Mínimo</p><p>{item.minStock} {item.unit}</p></div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Custo unitário</p>
-                    <p className="font-semibold">{fmtCurrency(item.unitCost)}</p>
+                    <p className="text-xs text-muted-foreground">Última atualização</p>
                     {item.updatedAt && <p className="text-xs text-muted-foreground">Atualizado em {fmtDate(item.updatedAt)}</p>}
                   </div>
                   <div className="flex justify-end gap-1">
@@ -248,20 +236,13 @@ export default function Stock() {
 
         <TabsContent value="cadastro">
           <Card>
-            <CardHeader><CardTitle>{editing ? "Editar item de estoque" : "Cadastrar item de estoque"}</CardTitle></CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-4">
-              <div><Label>Nome</Label><Input value={form.name} onChange={(event) => setField("name", event.target.value)} /></div>
-              <div><Label>Tipo</Label><Select value={form.ingredientType} onValueChange={(value) => setField("ingredientType", value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="comprado">Comprado</SelectItem><SelectItem value="fabricado">Fabricado</SelectItem><SelectItem value="produto">Produto</SelectItem></SelectContent></Select></div>
-              <div><Label>Conteúdo da embalagem</Label><Input type="number" min="0" step="0.001" value={form.packageContent} onChange={(event) => setField("packageContent", event.target.value)} /></div>
-              <div><Label>Unidade</Label><Input value={form.unit} onChange={(event) => setField("unit", event.target.value)} /></div>
-              <div><Label>Preço da embalagem</Label><Input type="number" min="0" step="0.01" value={form.packagePrice} onChange={(event) => setField("packagePrice", event.target.value)} /></div>
-              <div><Label>Rendimento %</Label><Input type="number" min="0.01" max="100" step="0.01" value={form.yieldPercent} onChange={(event) => setField("yieldPercent", event.target.value)} /></div>
-              <div><Label>Custo unitário calculado</Label><Input value={fmtCurrency(calculatedUnitCost)} disabled /></div>
-              <div><Label>Fornecedor</Label><Input value={form.supplier} onChange={(event) => setField("supplier", event.target.value)} /></div>
+            <CardHeader><CardTitle>{editing ? "Editar produto do estoque" : "Cadastrar produto no estoque"}</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-5">
+              <div className="md:col-span-2"><Label>Produto</Label><Input value={form.name} onChange={(event) => setField("name", event.target.value)} /></div>
+              <div><Label>Unidade de medida</Label><Input placeholder="un, kg, g, litro..." value={form.unit} onChange={(event) => setField("unit", event.target.value)} /></div>
               <div><Label>Saldo inicial</Label><Input type="number" min="0" step="0.001" value={form.quantity} onChange={(event) => setField("quantity", event.target.value)} /></div>
               <div><Label>Estoque mínimo</Label><Input type="number" min="0" step="0.001" value={form.minStock} onChange={(event) => setField("minStock", event.target.value)} /></div>
-              <div className="flex items-end gap-2"><Switch checked={form.active} onCheckedChange={(value) => setField("active", value)} /><Label>{form.active ? "Ativo" : "Inativo"}</Label></div>
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-2 md:col-span-5">
                 {editing && <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>}
                 <Button disabled={!form.name || save.isPending} onClick={() => save.mutate()} style={{ backgroundColor: "#7B2E68" }}><Plus className="mr-2 h-4 w-4" />Salvar</Button>
               </div>
