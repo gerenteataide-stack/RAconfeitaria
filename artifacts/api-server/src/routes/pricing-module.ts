@@ -14,7 +14,6 @@ import {
 import {
   calculateCMV,
   calculateContributionMargin,
-  calculateFixedCostAllocation,
   calculateGrossQuantity,
   calculateIngredientCost,
   calculateMarketplacePrice,
@@ -77,7 +76,7 @@ const SimulationBody = z.object({
   marketplacePrice: z.coerce.number().min(0).optional(),
   targetCMV: z.coerce.number().min(1).max(99).default(35),
   targetMargin: z.coerce.number().min(1).max(99).default(60),
-  monthlySalesEstimate: z.coerce.number().int().min(1).default(1),
+  save: z.boolean().optional().default(false),
 });
 
 function ingredient(row: typeof ingredientsTable.$inferSelect) {
@@ -194,8 +193,7 @@ async function buildSimulation(input: z.infer<typeof SimulationBody>, channel: "
   const extraPercent = extraRows.filter((item) => item.type === "percentage").reduce((sum, item) => sum + Number(item.value), 0);
   const applicableGeneral = generalRows.filter((item) => channel === "direct" ? item.applyToDirectSale : item.applyToMarketplace);
   const generalPercent = applicableGeneral.filter((item) => item.type === "variable").reduce((sum, item) => sum + Number(item.value), 0);
-  const monthlyFixed = applicableGeneral.filter((item) => item.type === "monthly_fixed").reduce((sum, item) => sum + Number(item.value), 0);
-  const fixedAllocated = calculateFixedCostAllocation(monthlyFixed, input.monthlySalesEstimate);
+  const fixedAllocated = 0;
   const percentTotal = extraPercent + generalPercent;
   const costBeforePercent = ingredientCost + extraFixed + fixedAllocated;
   const totalCost = calculateProductTotalCost(ingredientCost, extraFixed, salePrice, percentTotal, fixedAllocated);
@@ -365,32 +363,34 @@ router.post("/pricing-module/simulate", async (req, res): Promise<void> => {
   const direct = await buildSimulation(parsed.data, "direct");
   const marketplace = await buildSimulation(parsed.data, "marketplace");
   if (!direct || !marketplace) { res.status(404).json({ error: "Produto não encontrado" }); return; }
-  await db.insert(pricingSimulationsTable).values({
-    productId: parsed.data.productId,
-    directSalePrice: String(parsed.data.directSalePrice),
-    marketplacePrice: String(parsed.data.marketplacePrice ?? marketplace.suggestedMarketplacePrice),
-    targetCMV: String(parsed.data.targetCMV),
-    targetMargin: String(parsed.data.targetMargin),
-    monthlySalesEstimate: parsed.data.monthlySalesEstimate,
-    ingredientCost: String(direct.ingredientCost),
-    extraCost: String(direct.extraCost),
-    variableCost: String(direct.variableCost),
-    fixedCostAllocated: String(direct.fixedCostAllocated),
-    totalCost: String(direct.totalCost),
-    cmvPercent: String(direct.cmvPercent),
-    contributionMargin: String(direct.contributionMargin),
-    contributionMarginPercent: String(direct.contributionMarginPercent),
-    netProfit: String(direct.netProfit),
-    netProfitPercent: String(direct.netProfitPercent),
-    suggestedDirectPrice: String(direct.suggestedDirectPrice),
-    suggestedMarketplacePrice: String(marketplace.suggestedMarketplacePrice),
-  });
+  if (parsed.data.save) {
+    await db.insert(pricingSimulationsTable).values({
+      productId: parsed.data.productId,
+      directSalePrice: String(parsed.data.directSalePrice),
+      marketplacePrice: String(parsed.data.marketplacePrice ?? marketplace.suggestedMarketplacePrice),
+      targetCMV: String(parsed.data.targetCMV),
+      targetMargin: String(parsed.data.targetMargin),
+      monthlySalesEstimate: 1,
+      ingredientCost: String(direct.ingredientCost),
+      extraCost: String(direct.extraCost),
+      variableCost: String(direct.variableCost),
+      fixedCostAllocated: String(direct.fixedCostAllocated),
+      totalCost: String(direct.totalCost),
+      cmvPercent: String(direct.cmvPercent),
+      contributionMargin: String(direct.contributionMargin),
+      contributionMarginPercent: String(direct.contributionMarginPercent),
+      netProfit: String(direct.netProfit),
+      netProfitPercent: String(direct.netProfitPercent),
+      suggestedDirectPrice: String(direct.suggestedDirectPrice),
+      suggestedMarketplacePrice: String(marketplace.suggestedMarketplacePrice),
+    });
+  }
   res.json({ direct, marketplace });
 });
 
 router.get("/pricing-module/dashboard", async (_req, res): Promise<void> => {
   const products = await db.select().from(productsTable).orderBy(productsTable.name);
-  const rows = (await Promise.all(products.map((product) => buildSimulation({ productId: product.id, directSalePrice: Number(product.price), targetCMV: 35, targetMargin: 60, monthlySalesEstimate: 1 }, "direct")))).filter(Boolean) as NonNullable<Awaited<ReturnType<typeof buildSimulation>>>[];
+  const rows = (await Promise.all(products.map((product) => buildSimulation({ productId: product.id, directSalePrice: Number(product.price), targetCMV: 35, targetMargin: 60, save: false }, "direct")))).filter(Boolean) as NonNullable<Awaited<ReturnType<typeof buildSimulation>>>[];
   res.json({
     criticalCMV: rows.filter((row) => row.cmvPercent > 50),
     highestProfit: [...rows].sort((a, b) => b.netProfit - a.netProfit).slice(0, 5),
@@ -404,7 +404,7 @@ router.post("/pricing-module/products/:id/apply-suggested", async (req, res): Pr
   const id = Number(req.params.id);
   const parsed = SimulationBody.partial().safeParse({ ...req.body, productId: id });
   if (!Number.isFinite(id) || !parsed.success) { res.status(400).json({ error: parsed.success ? "ID inválido" : parsed.error.message }); return; }
-  const result = await buildSimulation({ productId: id, directSalePrice: Number(parsed.data.directSalePrice ?? 0), targetCMV: parsed.data.targetCMV ?? 35, targetMargin: parsed.data.targetMargin ?? 60, monthlySalesEstimate: parsed.data.monthlySalesEstimate ?? 1 }, "direct");
+  const result = await buildSimulation({ productId: id, directSalePrice: Number(parsed.data.directSalePrice ?? 0), targetCMV: parsed.data.targetCMV ?? 35, targetMargin: parsed.data.targetMargin ?? 60, save: false }, "direct");
   if (!result) { res.status(404).json({ error: "Produto não encontrado" }); return; }
   const [product] = await db.update(productsTable).set({ price: String(result.suggestedDirectPrice), cost: String(result.ingredientCost) }).where(eq(productsTable.id, id)).returning();
   res.json({ id: product.id, price: Number(product.price), cost: Number(product.cost ?? 0) });

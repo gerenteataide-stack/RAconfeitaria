@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, stockItemsTable, stockMovementsTable } from "@workspace/db";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { desc, eq, ilike, and, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import {
   ListStockItemsQueryParams,
@@ -8,7 +8,6 @@ import {
   UpdateStockItemParams,
   DeleteStockItemParams,
   AddStockMovementParams,
-  AddStockMovementBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -25,6 +24,13 @@ const StockItemBody = z.object({
   unitCost: z.coerce.number().min(0).optional(),
   supplier: z.string().optional().nullable(),
   active: z.boolean().optional().default(true),
+});
+
+const StockMovementBody = z.object({
+  type: z.enum(["entry", "exit"]),
+  quantity: z.coerce.number().positive(),
+  reason: z.string().optional(),
+  movementDate: z.coerce.date().optional(),
 });
 
 function calculatedUnitCost(data: { packageContent?: number; packagePrice?: number; unitCost?: number }) {
@@ -52,6 +58,19 @@ function formatStock(s: Record<string, unknown>) {
     active: s.active ?? true,
     isLow: qty <= min,
     createdAt: s.createdAt instanceof Date ? (s.createdAt as Date).toISOString() : s.createdAt,
+    updatedAt: s.updatedAt instanceof Date ? (s.updatedAt as Date).toISOString() : s.updatedAt,
+  };
+}
+
+function formatMovement(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    stockItemId: row.stockItemId,
+    stockItemName: row.stockItemName,
+    type: row.type,
+    quantity: Number(row.quantity ?? 0),
+    reason: row.reason ?? null,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
   };
 }
 
@@ -95,6 +114,24 @@ router.get("/stock/:id", async (req, res): Promise<void> => {
   res.json(formatStock(s as Record<string, unknown>));
 });
 
+router.get("/stock-movements", async (_req, res): Promise<void> => {
+  const rows = await db.select({
+    id: stockMovementsTable.id,
+    stockItemId: stockMovementsTable.stockItemId,
+    stockItemName: stockItemsTable.name,
+    type: stockMovementsTable.type,
+    quantity: stockMovementsTable.quantity,
+    reason: stockMovementsTable.reason,
+    createdAt: stockMovementsTable.createdAt,
+  })
+    .from(stockMovementsTable)
+    .leftJoin(stockItemsTable, eq(stockItemsTable.id, stockMovementsTable.stockItemId))
+    .orderBy(desc(stockMovementsTable.createdAt))
+    .limit(80);
+
+  res.json(rows.map((row) => formatMovement(row as Record<string, unknown>)));
+});
+
 router.patch("/stock/:id", async (req, res): Promise<void> => {
   const params = UpdateStockItemParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
@@ -132,7 +169,7 @@ router.delete("/stock/:id", async (req, res): Promise<void> => {
 router.post("/stock/:id/movement", async (req, res): Promise<void> => {
   const params = AddStockMovementParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const parsed = AddStockMovementBody.safeParse(req.body);
+  const parsed = StockMovementBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [current] = await db.select().from(stockItemsTable).where(eq(stockItemsTable.id, params.data.id));
@@ -146,6 +183,7 @@ router.post("/stock/:id/movement", async (req, res): Promise<void> => {
     type: parsed.data.type,
     quantity: String(parsed.data.quantity),
     reason: parsed.data.reason,
+    createdAt: parsed.data.movementDate ?? new Date(),
   });
 
   const [updated] = await db.update(stockItemsTable)
