@@ -12,6 +12,7 @@ import recipesRouter from "./recipes";
 import financialRouter from "./financial";
 import operationsRouter from "./operations";
 import paymentsRouter from "./payments";
+import pricingRouter from "./pricing";
 import { requireAuth, requirePermission } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -41,6 +42,8 @@ router.use(protectPrefix("/recipes", "recipes"));
 router.use(recipesRouter);
 router.use(protectPrefix("/financial", "financial"));
 router.use(financialRouter);
+router.use(protectPrefix("/pricing", "pricing"));
+router.use(pricingRouter);
 router.use(operationsRouter);
 router.use(paymentsRouter);
 

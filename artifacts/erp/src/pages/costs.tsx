@@ -10,24 +10,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 type CostItem = {
-  id: string;
+  id: number | string;
   name: string;
-  type: "fixed" | "variable";
+  type: "fixed" | "variable" | "monthly_fixed";
   amountType: "currency" | "percent";
-  amount: number;
-};
-
-type CostsResponse = {
-  costs: CostItem[];
+  value: number;
+  amount?: number;
+  applyToDirectSale: boolean;
+  applyToMarketplace: boolean;
+  active: boolean;
 };
 
 function newCost(): CostItem {
   return {
     id: crypto.randomUUID(),
     name: "",
-    type: "fixed",
-    amountType: "currency",
-    amount: 0,
+    type: "variable",
+    amountType: "percent",
+    value: 0,
+    applyToDirectSale: true,
+    applyToMarketplace: true,
+    active: true,
   };
 }
 
@@ -41,42 +44,50 @@ export default function CostsPage() {
   const [costs, setCosts] = useState<CostItem[]>([]);
   const { data } = useQuery({
     queryKey: ["pricing-costs"],
-    queryFn: () => apiRequest<CostsResponse>("/api/settings/costs"),
+    queryFn: () => apiRequest<CostItem[]>("/api/pricing/general-costs"),
   });
 
   useEffect(() => {
-    if (data) setCosts(data.costs.length > 0 ? data.costs : [newCost()]);
+    if (data) setCosts(data.length > 0 ? data : [newCost()]);
   }, [data]);
 
   const totals = useMemo(() => {
     return costs.reduce(
       (acc, cost) => {
-        const amount = Number(cost.amount || 0);
+        const amount = Number(cost.value ?? cost.amount ?? 0);
+        if (cost.type === "monthly_fixed") acc.monthlyFixed += amount;
         if (cost.type === "fixed") acc.fixed += amount;
         if (cost.type === "variable" && cost.amountType === "currency") acc.variableCurrency += amount;
         if (cost.type === "variable" && cost.amountType === "percent") acc.variablePercent += amount;
         return acc;
       },
-      { fixed: 0, variableCurrency: 0, variablePercent: 0 },
+      { fixed: 0, variableCurrency: 0, variablePercent: 0, monthlyFixed: 0 },
     );
   }, [costs]);
 
   const save = useMutation({
-    mutationFn: () => apiRequest<CostsResponse>("/api/settings/costs", {
-      method: "PUT",
-      body: JSON.stringify({
-        costs: costs
-          .filter((cost) => cost.name.trim())
-          .map((cost) => ({
-            ...cost,
-            name: cost.name.trim(),
-            amount: Number(cost.amount || 0),
-            amountType: cost.type === "fixed" ? "currency" : cost.amountType,
-          })),
-      }),
-    }),
+    mutationFn: async () => {
+      const saved: CostItem[] = [];
+      for (const cost of costs.filter((item) => item.name.trim())) {
+        const body = {
+          name: cost.name.trim(),
+          type: cost.type,
+          amountType: cost.type === "monthly_fixed" || cost.type === "fixed" ? "currency" : cost.amountType,
+          value: Number(cost.value ?? cost.amount ?? 0),
+          applyToDirectSale: cost.applyToDirectSale,
+          applyToMarketplace: cost.applyToMarketplace,
+          active: cost.active,
+        };
+        if (typeof cost.id === "number") {
+          saved.push(await apiRequest<CostItem>(`/api/pricing/general-costs/${cost.id}`, { method: "PATCH", body: JSON.stringify(body) }));
+        } else {
+          saved.push(await apiRequest<CostItem>("/api/pricing/general-costs", { method: "POST", body: JSON.stringify(body) }));
+        }
+      }
+      return saved;
+    },
     onSuccess: (response) => {
-      setCosts(response.costs.length > 0 ? response.costs : [newCost()]);
+      setCosts(response.length > 0 ? response : [newCost()]);
       qc.invalidateQueries({ queryKey: ["pricing-costs"] });
       qc.invalidateQueries({ queryKey: ["recipe-costs"] });
       qc.invalidateQueries({ queryKey: ["/api/recipes"] });
@@ -87,7 +98,7 @@ export default function CostsPage() {
     },
   });
 
-  function updateCost(id: string, patch: Partial<CostItem>) {
+  function updateCost(id: number | string, patch: Partial<CostItem>) {
     setCosts((current) => current.map((cost) => {
       if (cost.id !== id) return cost;
       const next = { ...cost, ...patch };
@@ -96,7 +107,12 @@ export default function CostsPage() {
     }));
   }
 
-  function removeCost(id: string) {
+  async function removeCost(id: number | string) {
+    if (typeof id === "number") {
+      await apiRequest<void>(`/api/pricing/general-costs/${id}`, { method: "DELETE" });
+      qc.invalidateQueries({ queryKey: ["pricing-costs"] });
+      qc.invalidateQueries({ queryKey: ["/api/recipes"] });
+    }
     setCosts((current) => {
       const next = current.filter((cost) => cost.id !== id);
       return next.length > 0 ? next : [newCost()];
@@ -134,6 +150,12 @@ export default function CostsPage() {
             <p className="text-xl font-semibold">{totals.variablePercent.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</p>
           </CardContent>
         </Card>
+        <Card className="rounded-lg">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Fixos mensais</p>
+            <p className="text-xl font-semibold">{fmtCurrency(totals.monthlyFixed)}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="rounded-lg">
@@ -154,14 +176,15 @@ export default function CostsPage() {
                   <SelectContent>
                     <SelectItem value="fixed">Fixo</SelectItem>
                     <SelectItem value="variable">Variável</SelectItem>
+                    <SelectItem value="monthly_fixed">Fixo mensal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
                 <Label>Incidência</Label>
                 <Select
-                  value={cost.type === "fixed" ? "currency" : cost.amountType}
-                  disabled={cost.type === "fixed"}
+                  value={cost.type === "fixed" || cost.type === "monthly_fixed" ? "currency" : cost.amountType}
+                  disabled={cost.type === "fixed" || cost.type === "monthly_fixed"}
                   onValueChange={(value) => updateCost(cost.id, { amountType: value as CostItem["amountType"] })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -173,10 +196,10 @@ export default function CostsPage() {
               </div>
               <div className="grid gap-2">
                 <Label>Valor</Label>
-                <Input type="number" min="0" step="0.01" value={String(cost.amount)} onChange={(event) => updateCost(cost.id, { amount: Number(event.target.value) })} />
+                <Input type="number" min="0" step="0.01" value={String(cost.value ?? cost.amount ?? 0)} onChange={(event) => updateCost(cost.id, { value: Number(event.target.value) })} />
               </div>
               <div className="flex items-end">
-                <Button type="button" variant="outline" size="icon" className="text-destructive hover:text-destructive" onClick={() => removeCost(cost.id)}>
+                <Button type="button" variant="outline" size="icon" className="text-destructive hover:text-destructive" onClick={() => void removeCost(cost.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

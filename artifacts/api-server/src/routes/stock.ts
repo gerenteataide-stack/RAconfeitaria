@@ -1,9 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db, stockItemsTable, stockMovementsTable } from "@workspace/db";
 import { eq, ilike, and, sql } from "drizzle-orm";
+import { z } from "zod/v4";
 import {
-  CreateStockItemBody,
-  UpdateStockItemBody,
   ListStockItemsQueryParams,
   GetStockItemParams,
   UpdateStockItemParams,
@@ -14,17 +13,43 @@ import {
 
 const router: IRouter = Router();
 
+const StockItemBody = z.object({
+  name: z.string().min(1),
+  ingredientType: z.enum(["comprado", "fabricado", "produto"]).default("comprado"),
+  unit: z.string().min(1).default("un"),
+  packageContent: z.coerce.number().min(0).default(1),
+  packagePrice: z.coerce.number().min(0).default(0),
+  yieldPercent: z.coerce.number().min(0).max(100).default(100),
+  quantity: z.coerce.number().min(0).default(0),
+  minStock: z.coerce.number().min(0).default(0),
+  unitCost: z.coerce.number().min(0).optional(),
+  supplier: z.string().optional().nullable(),
+  active: z.boolean().optional().default(true),
+});
+
+function calculatedUnitCost(data: { packageContent?: number; packagePrice?: number; unitCost?: number }) {
+  if (data.unitCost !== undefined && data.unitCost > 0) return data.unitCost;
+  const content = Number(data.packageContent ?? 0);
+  if (content <= 0) return 0;
+  return Number(data.packagePrice ?? 0) / content;
+}
+
 function formatStock(s: Record<string, unknown>) {
   const qty = Number(s.quantity ?? 0);
   const min = Number(s.minStock ?? 0);
   return {
     id: s.id,
     name: s.name,
+    ingredientType: s.ingredientType ?? "comprado",
     unit: s.unit,
+    packageContent: Number(s.packageContent ?? 1),
+    packagePrice: Number(s.packagePrice ?? 0),
+    yieldPercent: Number(s.yieldPercent ?? 100),
     quantity: qty,
     minStock: min,
     unitCost: Number(s.unitCost ?? 0),
     supplier: s.supplier ?? null,
+    active: s.active ?? true,
     isLow: qty <= min,
     createdAt: s.createdAt instanceof Date ? (s.createdAt as Date).toISOString() : s.createdAt,
   };
@@ -47,13 +72,17 @@ router.get("/stock", async (req, res): Promise<void> => {
 });
 
 router.post("/stock", async (req, res): Promise<void> => {
-  const parsed = CreateStockItemBody.safeParse(req.body);
+  const parsed = StockItemBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const unitCost = calculatedUnitCost(parsed.data);
   const [s] = await db.insert(stockItemsTable).values({
     ...parsed.data,
+    packageContent: String(parsed.data.packageContent),
+    packagePrice: String(parsed.data.packagePrice),
+    yieldPercent: String(parsed.data.yieldPercent),
     quantity: String(parsed.data.quantity),
     minStock: String(parsed.data.minStock),
-    unitCost: String(parsed.data.unitCost),
+    unitCost: String(unitCost),
   }).returning();
   res.status(201).json(formatStock(s as Record<string, unknown>));
 });
@@ -69,13 +98,23 @@ router.get("/stock/:id", async (req, res): Promise<void> => {
 router.patch("/stock/:id", async (req, res): Promise<void> => {
   const params = UpdateStockItemParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
-  const parsed = UpdateStockItemBody.safeParse(req.body);
+  const parsed = StockItemBody.partial().safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const updateData: Record<string, unknown> = { ...parsed.data };
+  if (parsed.data.packageContent !== undefined) updateData.packageContent = String(parsed.data.packageContent);
+  if (parsed.data.packagePrice !== undefined) updateData.packagePrice = String(parsed.data.packagePrice);
+  if (parsed.data.yieldPercent !== undefined) updateData.yieldPercent = String(parsed.data.yieldPercent);
   if (parsed.data.quantity !== undefined) updateData.quantity = String(parsed.data.quantity);
   if (parsed.data.minStock !== undefined) updateData.minStock = String(parsed.data.minStock);
-  if (parsed.data.unitCost !== undefined) updateData.unitCost = String(parsed.data.unitCost);
+  if (parsed.data.unitCost !== undefined || parsed.data.packageContent !== undefined || parsed.data.packagePrice !== undefined) {
+    const [current] = await db.select().from(stockItemsTable).where(eq(stockItemsTable.id, params.data.id));
+    updateData.unitCost = String(calculatedUnitCost({
+      packageContent: parsed.data.packageContent ?? Number(current?.packageContent ?? 0),
+      packagePrice: parsed.data.packagePrice ?? Number(current?.packagePrice ?? 0),
+      unitCost: parsed.data.unitCost,
+    }));
+  }
 
   const [s] = await db.update(stockItemsTable).set(updateData).where(eq(stockItemsTable.id, params.data.id)).returning();
   if (!s) { res.status(404).json({ error: "Stock item not found" }); return; }

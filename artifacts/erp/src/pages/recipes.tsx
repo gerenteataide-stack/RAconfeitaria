@@ -44,12 +44,13 @@ const emptyForm: RecipeFormState = {
 };
 
 type BusinessSettings = {
-  costs: Array<{
-    id: string;
+  costs?: Array<{
+    id: number;
     name: string;
-    type: "fixed" | "variable";
+    type: "fixed" | "variable" | "monthly_fixed";
     amountType: "currency" | "percent";
-    amount: number;
+    value: number;
+    active: boolean;
   }>;
 };
 
@@ -110,7 +111,7 @@ export default function Recipes() {
   });
   const { data: settings } = useQuery({
     queryKey: ["pricing-costs"],
-    queryFn: () => apiRequest<BusinessSettings>("/api/settings/costs"),
+    queryFn: () => apiRequest<NonNullable<BusinessSettings["costs"]>>("/api/pricing/general-costs"),
   });
   const createRecipe = useCreateRecipe();
   const updateRecipe = useUpdateRecipe();
@@ -128,16 +129,16 @@ export default function Recipes() {
       const stockItem = stockItemsById.get(Number(ingredient.stockItemId));
       return total + (Number(stockItem?.unitCost ?? 0) * Number(ingredient.quantity || 0));
     }, 0);
-    const configuredCosts = settings?.costs ?? [];
+    const configuredCosts = settings ?? [];
     const fixedCost = configuredCosts
       .filter((cost) => cost.type === "fixed")
-      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
+      .reduce((total, cost) => total + Number(cost.value || 0), 0);
     const variableCost = configuredCosts
       .filter((cost) => cost.type === "variable" && cost.amountType === "currency")
-      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
+      .reduce((total, cost) => total + Number(cost.value || 0), 0);
     const variablePercent = configuredCosts
       .filter((cost) => cost.type === "variable" && cost.amountType === "percent")
-      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
+      .reduce((total, cost) => total + Number(cost.value || 0), 0);
     const totalCost = ingredientsCost + fixedCost + variableCost;
     const yieldAmount = Math.max(Number(form.yield || 1), 1);
     const unitCost = totalCost / yieldAmount;
@@ -148,7 +149,7 @@ export default function Recipes() {
     const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost - (productPrice * (variablePercent / 100))) / productPrice) * 100 : null;
 
     return { ingredientsCost, fixedCost, variableCost, variablePercent, totalCost, unitCost, suggestedPrice, productPrice, contributionMarginPercent };
-  }, [form.ingredients, form.productId, form.yield, productsById, settings?.costs, stockItemsById]);
+  }, [form.ingredients, form.productId, form.yield, productsById, settings, stockItemsById]);
 
   function resetForm() {
     setForm(emptyForm);

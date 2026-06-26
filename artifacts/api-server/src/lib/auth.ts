@@ -14,8 +14,8 @@ export const ROLE_LABELS: Record<string, string> = {
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   owner: ["*"],
-  manager: ["dashboard", "orders", "customers", "products", "production", "stock", "recipes", "financial", "marketing", "delivery", "notifications", "settings", "users"],
-  finance: ["dashboard", "financial"],
+  manager: ["dashboard", "orders", "customers", "products", "production", "stock", "recipes", "pricing", "financial", "marketing", "delivery", "notifications", "settings", "users"],
+  finance: ["dashboard", "financial", "pricing", "recipes", "products"],
   production: ["dashboard", "production", "recipes", "products"],
   stock: ["dashboard", "stock", "products"],
   attendant: ["dashboard", "orders", "customers"],

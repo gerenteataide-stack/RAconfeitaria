@@ -21,6 +21,7 @@ import Delivery from "@/pages/delivery";
 import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
 import CostsPage from "@/pages/costs";
+import PricingPage from "@/pages/pricing";
 import Login from "@/pages/login";
 import UsersPage from "@/pages/users";
 import NotFound from "@/pages/not-found";
@@ -69,6 +70,7 @@ function AdminRouter() {
         <Route path="/delivery" component={Delivery} />
         <Route path="/notifications" component={Notifications} />
         <Route path="/costs" component={CostsPage} />
+        <Route path="/pricing" component={PricingPage} />
         <Route path="/settings" component={Settings} />
         <Route path="/users" component={UsersPage} />
         <Route component={NotFound} />

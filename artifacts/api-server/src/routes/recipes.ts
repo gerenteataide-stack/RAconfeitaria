@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { db, recipesTable, recipeIngredientsTable, productsTable, settingsTable, stockItemsTable } from "@workspace/db";
+import { db, generalCostsTable, recipesTable, recipeIngredientsTable, productsTable, stockItemsTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
+import { calculateGrossQuantity, calculateIngredientCost } from "../lib/pricing";
 import {
   GetRecipeParams,
   UpdateRecipeParams,
@@ -52,8 +53,10 @@ function serializeRecipe(
       stockItemId: ingredient.stockItemId,
       stockItemName: stockItem?.name ?? ingredient.stockItemName,
       quantity,
+      grossQuantity: calculateGrossQuantity(quantity, Number(stockItem?.yieldPercent ?? 100)),
       unit: ingredient.unit,
-      cost: unitCost * quantity,
+      yieldPercent: Number(stockItem?.yieldPercent ?? 100),
+      cost: calculateIngredientCost(quantity, unitCost, Number(stockItem?.yieldPercent ?? 100)),
     };
   });
 
@@ -94,27 +97,17 @@ function serializeRecipe(
 }
 
 async function readRecipeGlobalCosts() {
-  const rows = await db.select().from(settingsTable).where(inArray(settingsTable.key, ["pricingCosts", "recipeFixedCost", "recipeVariableCost"]));
-  const settings = Object.fromEntries(rows.map((row) => [row.key, row.value ?? "0"]));
-  const legacyFixed = Number(settings.recipeFixedCost ?? 0);
-  const legacyVariable = Number(settings.recipeVariableCost ?? 0);
-  let costs: Array<{ type: string; amountType: string; amount: number }> = [];
-  try {
-    costs = settings.pricingCosts ? JSON.parse(settings.pricingCosts) : [];
-  } catch {
-    costs = [];
-  }
-
+  const rows = await db.select().from(generalCostsTable).where(eq(generalCostsTable.active, true));
   return {
-    fixedTotal: costs
-      .filter((cost) => cost.type === "fixed")
-      .reduce((total, cost) => total + Number(cost.amount || 0), legacyFixed),
-    variableCurrencyTotal: costs
+    fixedTotal: rows
+      .filter((cost) => cost.type === "fixed" && cost.amountType !== "percent")
+      .reduce((total, cost) => total + Number(cost.value || 0), 0),
+    variableCurrencyTotal: rows
       .filter((cost) => cost.type === "variable" && cost.amountType !== "percent")
-      .reduce((total, cost) => total + Number(cost.amount || 0), legacyVariable),
-    variablePercentTotal: costs
+      .reduce((total, cost) => total + Number(cost.value || 0), 0),
+    variablePercentTotal: rows
       .filter((cost) => cost.type === "variable" && cost.amountType === "percent")
-      .reduce((total, cost) => total + Number(cost.amount || 0), 0),
+      .reduce((total, cost) => total + Number(cost.value || 0), 0),
   };
 }
 
