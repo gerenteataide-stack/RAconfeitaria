@@ -8,21 +8,21 @@ import { getAuthUser, requireAuth, ROLE_LABELS, ROLE_PERMISSIONS, signAuthToken 
 const router: IRouter = Router();
 
 const LoginBody = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email("Email inválido").transform((value) => value.toLowerCase()),
   password: z.string().min(6),
 });
 
 const CreateUserBody = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
+  name: z.string().trim().min(2, "Nome obrigatório"),
+  email: z.string().trim().email("Email inválido").transform((value) => value.toLowerCase()),
   password: z.string().min(8),
   role: z.enum(["owner", "manager", "finance", "production", "stock", "attendant"]),
   active: z.boolean().optional().default(true),
 });
 
 const UpdateUserBody = z.object({
-  name: z.string().min(2).optional(),
-  email: z.string().email().optional(),
+  name: z.string().trim().min(2, "Nome obrigatório").optional(),
+  email: z.string().trim().email("Email inválido").transform((value) => value.toLowerCase()).optional(),
   password: z.string().min(8).optional(),
   role: z.enum(["owner", "manager", "finance", "production", "stock", "attendant"]).optional(),
   active: z.boolean().optional(),
@@ -96,7 +96,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email.toLowerCase()));
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email));
   if (!user || !user.active) { res.status(401).json({ error: "Email ou senha invalidos" }); return; }
 
   const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
@@ -125,7 +125,7 @@ router.post("/auth/users", requireAuth, async (req, res): Promise<void> => {
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   const [user] = await db.insert(usersTable).values({
     name: parsed.data.name,
-    email: parsed.data.email.toLowerCase(),
+    email: parsed.data.email,
     passwordHash,
     roleName: parsed.data.role,
     active: parsed.data.active,
@@ -149,7 +149,7 @@ router.patch("/auth/users/:id", requireAuth, async (req, res): Promise<void> => 
 
   const updateData: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
-  if (parsed.data.email !== undefined) updateData.email = parsed.data.email.toLowerCase();
+  if (parsed.data.email !== undefined) updateData.email = parsed.data.email;
   if (parsed.data.role !== undefined) updateData.roleName = parsed.data.role;
   if (parsed.data.active !== undefined) updateData.active = parsed.data.active;
   if (parsed.data.password) updateData.passwordHash = await bcrypt.hash(parsed.data.password, 12);

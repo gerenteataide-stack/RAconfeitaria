@@ -13,7 +13,22 @@ export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T>
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `HTTP ${response.status}`);
+    let message = text || `HTTP ${response.status}`;
+    try {
+      const data = JSON.parse(text) as { error?: unknown; message?: unknown };
+      const raw = data.error ?? data.message;
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw) as Array<{ message?: string }>;
+          message = parsed[0]?.message ?? raw;
+        } catch {
+          message = raw;
+        }
+      }
+    } catch {
+      message = text || `HTTP ${response.status}`;
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {

@@ -24,6 +24,14 @@ type UserRow = {
 
 const emptyForm = { name: "", email: "", password: "", role: "attendant", active: true };
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : undefined;
+}
+
 function roleLabel(role: string) {
   return {
     owner: "Proprietária",
@@ -49,7 +57,12 @@ export default function UsersPage() {
   const create = useMutation({
     mutationFn: () => apiRequest<UserRow>("/api/auth/users", {
       method: "POST",
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password.trim(),
+      }),
     }),
     onSuccess: (createdUser) => {
       setForm(emptyForm);
@@ -58,7 +71,7 @@ export default function UsersPage() {
       toast({ title: "Usuário criado" });
     },
     onError: (error) => {
-      toast({ title: "Erro ao criar usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      toast({ title: "Erro ao criar usuário", description: errorMessage(error), variant: "destructive" });
     },
   });
 
@@ -66,12 +79,13 @@ export default function UsersPage() {
     mutationFn: () => {
       if (!editing) throw new Error("Nenhum usuário selecionado");
       const payload: Record<string, unknown> = {
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
         role: form.role,
         active: form.active,
       };
-      if (form.password.trim()) payload.password = form.password;
+      const email = form.email.trim().toLowerCase();
+      if (email !== editing.email.trim().toLowerCase()) payload.email = email;
+      if (form.password.trim()) payload.password = form.password.trim();
       return apiRequest<UserRow>(`/api/auth/users/${editing.id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
@@ -85,7 +99,7 @@ export default function UsersPage() {
       toast({ title: "Usuário atualizado" });
     },
     onError: (error) => {
-      toast({ title: "Erro ao atualizar usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      toast({ title: "Erro ao atualizar usuário", description: errorMessage(error), variant: "destructive" });
     },
   });
 
@@ -103,7 +117,7 @@ export default function UsersPage() {
       toast({ title: "Usuário excluído" });
     },
     onError: (error) => {
-      toast({ title: "Erro ao excluir usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+      toast({ title: "Erro ao excluir usuário", description: errorMessage(error), variant: "destructive" });
     },
   });
 
@@ -127,6 +141,24 @@ export default function UsersPage() {
     setForm(emptyForm);
   }
 
+  function submitCreate() {
+    if (!isValidEmail(form.email)) {
+      toast({ title: "Email inválido", description: "Informe um email válido antes de criar o usuário.", variant: "destructive" });
+      return;
+    }
+    create.mutate();
+  }
+
+  function submitUpdate() {
+    if (!editing) return;
+    const emailChanged = form.email.trim().toLowerCase() !== editing.email.trim().toLowerCase();
+    if (emailChanged && !isValidEmail(form.email)) {
+      toast({ title: "Email inválido", description: "Corrija o email ou deixe o email atual sem alteração.", variant: "destructive" });
+      return;
+    }
+    updateUser.mutate();
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -140,7 +172,7 @@ export default function UsersPage() {
             <CardTitle className="flex items-center gap-2 text-lg"><UserPlus className="h-5 w-5" /> Novo acesso</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
+            <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); submitCreate(); }}>
               <div>
                 <Label>Nome</Label>
                 <Input value={form.name} onChange={(event) => update("name", event.target.value)} required />
@@ -239,7 +271,7 @@ export default function UsersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEdit}>Cancelar</Button>
-            <Button onClick={() => updateUser.mutate()} disabled={updateUser.isPending}>
+            <Button onClick={submitUpdate} disabled={updateUser.isPending}>
               {updateUser.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
