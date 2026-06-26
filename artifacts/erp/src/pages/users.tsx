@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, ShieldCheck, UserPlus } from "lucide-react";
+import { Pencil, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +40,7 @@ export default function UsersPage() {
   const { toast } = useToast();
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState<UserRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const { data: users = [] } = useQuery({
     queryKey: ["auth-users"],
     queryFn: () => apiRequest<UserRow[]>("/api/auth/users"),
@@ -69,7 +71,7 @@ export default function UsersPage() {
         role: form.role,
         active: form.active,
       };
-      if (form.password) payload.password = form.password;
+      if (form.password.trim()) payload.password = form.password;
       return apiRequest<UserRow>(`/api/auth/users/${editing.id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
@@ -87,6 +89,24 @@ export default function UsersPage() {
     },
   });
 
+  const deleteUser = useMutation({
+    mutationFn: () => {
+      if (!deleteTarget) throw new Error("Nenhum usuário selecionado");
+      return apiRequest<void>(`/api/auth/users/${deleteTarget.id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      if (deleteTarget) {
+        qc.setQueryData<UserRow[]>(["auth-users"], (current = []) => current.filter((user) => user.id !== deleteTarget.id));
+      }
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["auth-users"] });
+      toast({ title: "Usuário excluído" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao excluir usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    },
+  });
+
   function update(field: keyof typeof form, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -100,6 +120,11 @@ export default function UsersPage() {
       role: user.role,
       active: user.active,
     });
+  }
+
+  function closeEdit() {
+    setEditing(null);
+    setForm(emptyForm);
   }
 
   return (
@@ -165,6 +190,9 @@ export default function UsersPage() {
                   <Button variant="outline" size="sm" onClick={() => openEdit(user)}>
                     <Pencil className="h-4 w-4" /> Editar
                   </Button>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteTarget(user)}>
+                    <Trash2 className="h-4 w-4" /> Excluir
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -172,7 +200,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) { setEditing(null); setForm(emptyForm); } }}>
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) closeEdit(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar usuário</DialogTitle>
@@ -210,13 +238,30 @@ export default function UsersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancelar</Button>
+            <Button variant="outline" onClick={closeEdit}>Cancelar</Button>
             <Button onClick={() => updateUser.mutate()} disabled={updateUser.isPending}>
               {updateUser.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o acesso de {deleteTarget?.name}. Não é possível excluir o próprio usuário logado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteUser.mutate()} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -159,4 +159,21 @@ router.patch("/auth/users/:id", requireAuth, async (req, res): Promise<void> => 
   res.json(formatUser(user));
 });
 
+router.delete("/auth/users/:id", requireAuth, async (req, res): Promise<void> => {
+  if (!canManageUsers(req)) { res.status(403).json({ error: "Permission denied" }); return; }
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  if (req.user?.id === id) { res.status(400).json({ error: "Você não pode excluir o próprio usuário." }); return; }
+
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!target) { res.status(404).json({ error: "User not found" }); return; }
+  if (target.roleName === "owner" && req.user?.role !== "owner") {
+    res.status(403).json({ error: "Somente a proprietária pode excluir outro perfil de proprietária." });
+    return;
+  }
+
+  await db.delete(usersTable).where(eq(usersTable.id, id));
+  res.sendStatus(204);
+});
+
 export default router;

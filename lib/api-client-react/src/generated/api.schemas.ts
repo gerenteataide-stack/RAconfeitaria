@@ -405,6 +405,7 @@ export interface Recipe {
   prepTime: number;
   fixedCost: number;
   variableCost: number;
+  variablePercent: number;
   /** @nullable */
   instructions?: string | null;
   ingredientsCost: number;

@@ -46,8 +46,13 @@ const emptyForm: RecipeFormState = {
 };
 
 type BusinessSettings = {
-  recipeFixedCost: number;
-  recipeVariableCost: number;
+  costs: Array<{
+    id: string;
+    name: string;
+    type: "fixed" | "variable";
+    amountType: "currency" | "percent";
+    amount: number;
+  }>;
 };
 
 function fmtCurrency(value: number) {
@@ -92,8 +97,8 @@ export default function Recipes() {
   const { data: products = [] } = useListProducts();
   const { data: stockItems = [] } = useListStockItems();
   const { data: settings } = useQuery({
-    queryKey: ["recipe-costs"],
-    queryFn: () => apiRequest<BusinessSettings>("/api/settings/recipe-costs"),
+    queryKey: ["pricing-costs"],
+    queryFn: () => apiRequest<BusinessSettings>("/api/settings/costs"),
   });
   const createRecipe = useCreateRecipe();
   const updateRecipe = useUpdateRecipe();
@@ -111,18 +116,27 @@ export default function Recipes() {
       const stockItem = stockItemsById.get(Number(ingredient.stockItemId));
       return total + (Number(stockItem?.unitCost ?? 0) * Number(ingredient.quantity || 0));
     }, 0);
-    const fixedCost = Number(settings?.recipeFixedCost ?? 0);
-    const variableCost = Number(settings?.recipeVariableCost ?? 0);
+    const configuredCosts = settings?.costs ?? [];
+    const fixedCost = configuredCosts
+      .filter((cost) => cost.type === "fixed")
+      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
+    const variableCost = configuredCosts
+      .filter((cost) => cost.type === "variable" && cost.amountType === "currency")
+      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
+    const variablePercent = configuredCosts
+      .filter((cost) => cost.type === "variable" && cost.amountType === "percent")
+      .reduce((total, cost) => total + Number(cost.amount || 0), 0);
     const totalCost = ingredientsCost + fixedCost + variableCost;
     const yieldAmount = Math.max(Number(form.yield || 1), 1);
     const unitCost = totalCost / yieldAmount;
-    const suggestedPrice = unitCost / 0.4;
+    const suggestedDenominator = 0.4 - (variablePercent / 100);
+    const suggestedPrice = suggestedDenominator > 0 ? unitCost / suggestedDenominator : 0;
     const product = productsById.get(Number(form.productId));
     const productPrice = Number(product?.price ?? 0);
-    const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost) / productPrice) * 100 : null;
+    const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost - (productPrice * (variablePercent / 100))) / productPrice) * 100 : null;
 
-    return { ingredientsCost, fixedCost, variableCost, totalCost, unitCost, suggestedPrice, productPrice, contributionMarginPercent };
-  }, [form.ingredients, form.productId, form.yield, productsById, settings?.recipeFixedCost, settings?.recipeVariableCost, stockItemsById]);
+    return { ingredientsCost, fixedCost, variableCost, variablePercent, totalCost, unitCost, suggestedPrice, productPrice, contributionMarginPercent };
+  }, [form.ingredients, form.productId, form.yield, productsById, settings?.costs, stockItemsById]);
 
   function resetForm() {
     setForm(emptyForm);
@@ -402,7 +416,7 @@ export default function Recipes() {
                 <p className="text-xs text-muted-foreground">Custo total</p>
                 <p className="font-semibold">{fmtCurrency(pricingPreview.totalCost)}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Fixo {fmtCurrency(pricingPreview.fixedCost)} + variável {fmtCurrency(pricingPreview.variableCost)}
+                  Fixo {fmtCurrency(pricingPreview.fixedCost)} + variável {fmtCurrency(pricingPreview.variableCost)} + {pricingPreview.variablePercent.toFixed(2)}%
                 </p>
               </div>
               <div>

@@ -57,6 +57,18 @@ const SettingsBody = z.object({
   recipeVariableCost: z.coerce.number().min(0).optional(),
 });
 
+const CostItemBody = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  type: z.enum(["fixed", "variable"]),
+  amountType: z.enum(["currency", "percent"]).default("currency"),
+  amount: z.coerce.number().min(0),
+});
+
+const PricingCostsBody = z.object({
+  costs: z.array(CostItemBody),
+});
+
 function zone(row: typeof deliveryZonesTable.$inferSelect) {
   return {
     ...row,
@@ -250,6 +262,40 @@ router.put("/settings/business", requireAuth, requirePermission("settings"), asy
   }
   await writeAudit(req, "update", "settings", "business");
   res.json({ ok: true });
+});
+
+router.get("/settings/costs", requireAuth, requirePermission("settings"), async (_req, res): Promise<void> => {
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "pricingCosts")).limit(1);
+  let costs: z.infer<typeof CostItemBody>[] = [];
+  try {
+    costs = row?.value ? JSON.parse(row.value) : [];
+  } catch {
+    costs = [];
+  }
+
+  res.json({
+    costs: costs.map((cost) => ({
+      ...cost,
+      amountType: cost.type === "fixed" ? "currency" : cost.amountType,
+      amount: Number(cost.amount || 0),
+    })),
+  });
+});
+
+router.put("/settings/costs", requireAuth, requirePermission("settings"), async (req, res): Promise<void> => {
+  const parsed = PricingCostsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const costs = parsed.data.costs.map((cost) => ({
+    ...cost,
+    amountType: cost.type === "fixed" ? "currency" : cost.amountType,
+  }));
+
+  await db.insert(settingsTable).values({ key: "pricingCosts", value: JSON.stringify(costs) }).onConflictDoUpdate({
+    target: settingsTable.key,
+    set: { value: JSON.stringify(costs) },
+  });
+  await writeAudit(req, "update", "settings", "costs");
+  res.json({ costs });
 });
 
 export default router;

@@ -19,8 +19,6 @@ type BusinessSettings = {
   instagram: string;
   location: string;
   serviceNote: string;
-  recipeFixedCost: number;
-  recipeVariableCost: number;
 };
 
 const empty = {
@@ -33,8 +31,6 @@ const empty = {
   location: "",
   serviceNote: "",
   privacyPolicyUrl: "",
-  recipeFixedCost: "0",
-  recipeVariableCost: "0",
 };
 
 export default function Settings() {
@@ -58,24 +54,17 @@ export default function Settings() {
       location: data.location ?? "",
       serviceNote: data.serviceNote ?? "",
       privacyPolicyUrl: data.privacyPolicyUrl ?? "",
-      recipeFixedCost: String(data.recipeFixedCost ?? 0),
-      recipeVariableCost: String(data.recipeVariableCost ?? 0),
     });
   }, [data]);
 
   const save = useMutation({
     mutationFn: () => apiRequest("/api/settings/business", {
       method: "PUT",
-      body: JSON.stringify({
-        ...form,
-        recipeFixedCost: Number(form.recipeFixedCost || 0),
-        recipeVariableCost: Number(form.recipeVariableCost || 0),
-      }),
+      body: JSON.stringify(form),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business-settings"] });
       qc.invalidateQueries({ queryKey: ["public-settings"] });
-      qc.invalidateQueries({ queryKey: ["recipe-costs"] });
       qc.invalidateQueries({ queryKey: ["/api/recipes"] });
       toast({ title: "Configurações salvas" });
     },
@@ -148,17 +137,6 @@ export default function Settings() {
           <div>
             <Label>URL da política de privacidade</Label>
             <Input placeholder="https://..." value={form.privacyPolicyUrl} onChange={(event) => setField("privacyPolicyUrl", event.target.value)} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 rounded-lg border border-pink-100 bg-pink-50/40 p-4 sm:grid-cols-2">
-            <div>
-              <Label>Custo fixo para fichas técnicas</Label>
-              <Input type="number" min="0" step="0.01" value={form.recipeFixedCost} onChange={(event) => setField("recipeFixedCost", event.target.value)} />
-            </div>
-            <div>
-              <Label>Custo variável para fichas técnicas</Label>
-              <Input type="number" min="0" step="0.01" value={form.recipeVariableCost} onChange={(event) => setField("recipeVariableCost", event.target.value)} />
-            </div>
           </div>
 
           <Button className="w-fit" onClick={() => save.mutate()} disabled={save.isPending} style={{ backgroundColor: "#7B2E68" }}>

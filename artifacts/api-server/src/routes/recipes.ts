@@ -38,7 +38,11 @@ function serializeRecipe(
   ingredients: IngredientRow[],
   stockItemsById: Map<number, StockItemRow>,
   productsById: Map<number, ProductRow>,
-  globalCosts: { fixedCost: number; variableCost: number },
+  globalCosts: {
+    fixedTotal: number;
+    variableCurrencyTotal: number;
+    variablePercentTotal: number;
+  },
 ) {
   const ingredientsWithCost = ingredients.map((ingredient) => {
     const stockItem = stockItemsById.get(ingredient.stockItemId);
@@ -54,15 +58,18 @@ function serializeRecipe(
   });
 
   const ingredientsCost = ingredientsWithCost.reduce((acc, ingredient) => acc + ingredient.cost, 0);
-  const fixedCost = globalCosts.fixedCost;
-  const variableCost = globalCosts.variableCost;
+  const fixedCost = globalCosts.fixedTotal;
+  const variableCost = globalCosts.variableCurrencyTotal;
+  const variablePercent = globalCosts.variablePercentTotal;
   const totalCost = ingredientsCost + fixedCost + variableCost;
   const unitCost = recipe.yield > 0 ? totalCost / recipe.yield : totalCost;
   const product = productsById.get(recipe.productId);
   const productPrice = product ? Number(product.price) : 0;
   const cmvPercent = productPrice > 0 ? (unitCost / productPrice) * 100 : null;
-  const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost) / productPrice) * 100 : null;
-  const suggestedPrice = unitCost / 0.4;
+  const variablePercentRate = variablePercent / 100;
+  const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost - (productPrice * variablePercentRate)) / productPrice) * 100 : null;
+  const suggestedDenominator = 0.4 - variablePercentRate;
+  const suggestedPrice = suggestedDenominator > 0 ? unitCost / suggestedDenominator : 0;
 
   return {
     id: recipe.id,
@@ -72,6 +79,7 @@ function serializeRecipe(
     prepTime: recipe.prepTime,
     fixedCost,
     variableCost,
+    variablePercent,
     instructions: recipe.instructions ?? null,
     ingredientsCost,
     totalCost,
@@ -86,11 +94,27 @@ function serializeRecipe(
 }
 
 async function readRecipeGlobalCosts() {
-  const rows = await db.select().from(settingsTable).where(inArray(settingsTable.key, ["recipeFixedCost", "recipeVariableCost"]));
+  const rows = await db.select().from(settingsTable).where(inArray(settingsTable.key, ["pricingCosts", "recipeFixedCost", "recipeVariableCost"]));
   const settings = Object.fromEntries(rows.map((row) => [row.key, row.value ?? "0"]));
+  const legacyFixed = Number(settings.recipeFixedCost ?? 0);
+  const legacyVariable = Number(settings.recipeVariableCost ?? 0);
+  let costs: Array<{ type: string; amountType: string; amount: number }> = [];
+  try {
+    costs = settings.pricingCosts ? JSON.parse(settings.pricingCosts) : [];
+  } catch {
+    costs = [];
+  }
+
   return {
-    fixedCost: Number(settings.recipeFixedCost ?? 0),
-    variableCost: Number(settings.recipeVariableCost ?? 0),
+    fixedTotal: costs
+      .filter((cost) => cost.type === "fixed")
+      .reduce((total, cost) => total + Number(cost.amount || 0), legacyFixed),
+    variableCurrencyTotal: costs
+      .filter((cost) => cost.type === "variable" && cost.amountType !== "percent")
+      .reduce((total, cost) => total + Number(cost.amount || 0), legacyVariable),
+    variablePercentTotal: costs
+      .filter((cost) => cost.type === "variable" && cost.amountType === "percent")
+      .reduce((total, cost) => total + Number(cost.amount || 0), 0),
   };
 }
 
