@@ -226,7 +226,7 @@ router.get("/settings/public", async (_req, res): Promise<void> => {
   res.json(publicSettings);
 });
 
-router.get("/settings/business", requireAuth, requirePermission("*"), async (_req, res): Promise<void> => {
+router.get("/settings/business", requireAuth, requirePermission("settings"), async (_req, res): Promise<void> => {
   res.json(await readBusinessSettings());
 });
 
@@ -238,7 +238,7 @@ router.get("/settings/recipe-costs", requireAuth, async (_req, res): Promise<voi
   });
 });
 
-router.put("/settings/business", requireAuth, requirePermission("*"), async (req, res): Promise<void> => {
+router.put("/settings/business", requireAuth, requirePermission("settings"), async (req, res): Promise<void> => {
   const parsed = SettingsBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const entries = Object.entries(parsed.data).filter(([, value]) => value !== undefined);

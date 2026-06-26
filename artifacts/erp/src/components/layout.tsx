@@ -35,18 +35,18 @@ const NAV_ITEMS = [
   { title: "Pedidos", url: "/orders", icon: ShoppingCart, permission: "orders" },
   { title: "Clientes", url: "/customers", icon: Users, permission: "customers" },
   { title: "Produtos", url: "/products", icon: Package, permission: "products" },
-  { title: "Producao", url: "/production", icon: ChefHat, permission: "production" },
+  { title: "Produção", url: "/production", icon: ChefHat, permission: "production" },
   { title: "Estoque", url: "/stock", icon: Box, permission: "stock" },
-  { title: "Fichas Tecnicas", url: "/recipes", icon: BookOpen, permission: "recipes" },
+  { title: "Fichas Técnicas", url: "/recipes", icon: BookOpen, permission: "recipes" },
   { title: "Financeiro", url: "/financial", icon: DollarSign, permission: "financial" },
   { title: "Marketing", url: "/marketing", icon: Megaphone, permission: "marketing" },
   { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },
-  { title: "Notificacoes", url: "/notifications", icon: Bell, permission: "notifications" },
-  { title: "Configuracoes", url: "/settings", icon: Settings, permission: "*" },
-  { title: "Usuarios", url: "/users", icon: Users, permission: "*" },
+  { title: "Notificações", url: "/notifications", icon: Bell, permission: "notifications" },
+  { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
+  { title: "Usuários", url: "/users", icon: Users, permission: "users" },
 ];
 
-const STORE_LINK = { title: "Ver Loja Publica", url: "/cardapio", icon: Store };
+const STORE_LINK = { title: "Ver Loja Pública", url: "/cardapio", icon: Store };
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();

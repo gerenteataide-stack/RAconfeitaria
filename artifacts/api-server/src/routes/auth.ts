@@ -28,6 +28,11 @@ const UpdateUserBody = z.object({
   active: z.boolean().optional(),
 });
 
+function canManageUsers(req: { user?: { permissions: string[] } }) {
+  const permissions = req.user?.permissions ?? [];
+  return permissions.includes("*") || permissions.includes("users");
+}
+
 function formatUser(user: typeof usersTable.$inferSelect) {
   return {
     id: user.id,
@@ -108,13 +113,13 @@ router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.get("/auth/users", requireAuth, async (req, res): Promise<void> => {
-  if (!req.user?.permissions.includes("*")) { res.status(403).json({ error: "Permission denied" }); return; }
+  if (!canManageUsers(req)) { res.status(403).json({ error: "Permission denied" }); return; }
   const rows = await db.select().from(usersTable).orderBy(usersTable.name);
   res.json(rows.map(formatUser));
 });
 
 router.post("/auth/users", requireAuth, async (req, res): Promise<void> => {
-  if (!req.user?.permissions.includes("*")) { res.status(403).json({ error: "Permission denied" }); return; }
+  if (!canManageUsers(req)) { res.status(403).json({ error: "Permission denied" }); return; }
   const parsed = CreateUserBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
@@ -136,7 +141,7 @@ router.post("/auth/users", requireAuth, async (req, res): Promise<void> => {
 });
 
 router.patch("/auth/users/:id", requireAuth, async (req, res): Promise<void> => {
-  if (!req.user?.permissions.includes("*")) { res.status(403).json({ error: "Permission denied" }); return; }
+  if (!canManageUsers(req)) { res.status(403).json({ error: "Permission denied" }); return; }
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdateUserBody.safeParse(req.body);
