@@ -109,7 +109,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {
-  res.json({ user: req.user });
+  await ensureAuthDefaults();
+  const freshUser = req.user?.id ? await getAuthUser(req.user.id) : null;
+  if (!freshUser) { res.status(401).json({ error: "Sessão inválida" }); return; }
+  res.json({ user: freshUser });
 });
 
 router.get("/auth/users", requireAuth, async (req, res): Promise<void> => {
