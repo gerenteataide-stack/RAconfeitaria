@@ -755,10 +755,16 @@ export const ListRecipesResponseItem = zod.object({
   "productName": zod.string(),
   "yield": zod.number(),
   "prepTime": zod.number(),
+  "fixedCost": zod.number(),
+  "variableCost": zod.number(),
   "instructions": zod.string().nullish(),
+  "ingredientsCost": zod.number(),
   "totalCost": zod.number(),
   "unitCost": zod.number(),
+  "productPrice": zod.number(),
+  "suggestedPrice": zod.number(),
   "cmvPercent": zod.number().nullish(),
+  "contributionMarginPercent": zod.number().nullish(),
   "ingredients": zod.array(zod.object({
   "stockItemId": zod.number(),
   "stockItemName": zod.string(),
@@ -800,10 +806,16 @@ export const GetRecipeResponse = zod.object({
   "productName": zod.string(),
   "yield": zod.number(),
   "prepTime": zod.number(),
+  "fixedCost": zod.number(),
+  "variableCost": zod.number(),
   "instructions": zod.string().nullish(),
+  "ingredientsCost": zod.number(),
   "totalCost": zod.number(),
   "unitCost": zod.number(),
+  "productPrice": zod.number(),
+  "suggestedPrice": zod.number(),
   "cmvPercent": zod.number().nullish(),
+  "contributionMarginPercent": zod.number().nullish(),
   "ingredients": zod.array(zod.object({
   "stockItemId": zod.number(),
   "stockItemName": zod.string(),
@@ -825,6 +837,7 @@ export const UpdateRecipeParams = zod.object({
 export const UpdateRecipeBody = zod.object({
   "yield": zod.number().optional(),
   "prepTime": zod.number().optional(),
+  "productId": zod.number().optional(),
   "instructions": zod.string().optional(),
   "ingredients": zod.array(zod.object({
   "stockItemId": zod.number(),
@@ -839,10 +852,16 @@ export const UpdateRecipeResponse = zod.object({
   "productName": zod.string(),
   "yield": zod.number(),
   "prepTime": zod.number(),
+  "fixedCost": zod.number(),
+  "variableCost": zod.number(),
   "instructions": zod.string().nullish(),
+  "ingredientsCost": zod.number(),
   "totalCost": zod.number(),
   "unitCost": zod.number(),
+  "productPrice": zod.number(),
+  "suggestedPrice": zod.number(),
   "cmvPercent": zod.number().nullish(),
+  "contributionMarginPercent": zod.number().nullish(),
   "ingredients": zod.array(zod.object({
   "stockItemId": zod.number(),
   "stockItemName": zod.string(),
@@ -986,5 +1005,3 @@ export const GetDreResponse = zod.object({
   "netProfit": zod.number(),
   "cmvPercent": zod.number()
 })
-
-

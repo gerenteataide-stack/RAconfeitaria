@@ -19,6 +19,8 @@ type BusinessSettings = {
   instagram: string;
   location: string;
   serviceNote: string;
+  recipeFixedCost: number;
+  recipeVariableCost: number;
 };
 
 const empty = {
@@ -31,6 +33,8 @@ const empty = {
   location: "",
   serviceNote: "",
   privacyPolicyUrl: "",
+  recipeFixedCost: "0",
+  recipeVariableCost: "0",
 };
 
 export default function Settings() {
@@ -43,30 +47,40 @@ export default function Settings() {
   const [form, setForm] = useState(empty);
 
   useEffect(() => {
-    if (data) {
-      setForm({
-        businessName: data.businessName ?? "",
-        businessSubtitle: data.businessSubtitle ?? "",
-        businessDescription: data.businessDescription ?? "",
-        whatsappNumber: data.whatsappNumber ?? "",
-        pixKey: data.pixKey ?? "",
-        instagram: data.instagram ?? "",
-        location: data.location ?? "",
-        serviceNote: data.serviceNote ?? "",
-        privacyPolicyUrl: data.privacyPolicyUrl ?? "",
-      });
-    }
+    if (!data) return;
+    setForm({
+      businessName: data.businessName ?? "",
+      businessSubtitle: data.businessSubtitle ?? "",
+      businessDescription: data.businessDescription ?? "",
+      whatsappNumber: data.whatsappNumber ?? "",
+      pixKey: data.pixKey ?? "",
+      instagram: data.instagram ?? "",
+      location: data.location ?? "",
+      serviceNote: data.serviceNote ?? "",
+      privacyPolicyUrl: data.privacyPolicyUrl ?? "",
+      recipeFixedCost: String(data.recipeFixedCost ?? 0),
+      recipeVariableCost: String(data.recipeVariableCost ?? 0),
+    });
   }, [data]);
 
   const save = useMutation({
     mutationFn: () => apiRequest("/api/settings/business", {
       method: "PUT",
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        recipeFixedCost: Number(form.recipeFixedCost || 0),
+        recipeVariableCost: Number(form.recipeVariableCost || 0),
+      }),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business-settings"] });
       qc.invalidateQueries({ queryKey: ["public-settings"] });
+      qc.invalidateQueries({ queryKey: ["recipe-costs"] });
+      qc.invalidateQueries({ queryKey: ["/api/recipes"] });
       toast({ title: "Configurações salvas" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao salvar configurações", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     },
   });
 
@@ -86,6 +100,7 @@ export default function Settings() {
           <ShieldCheck className="h-5 w-5" style={{ color: "#7B2E68" }} />
           <h2 className="font-semibold">Informações da loja</h2>
         </div>
+
         <div className="grid gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -97,10 +112,12 @@ export default function Settings() {
               <Input value={form.businessSubtitle} onChange={(event) => setField("businessSubtitle", event.target.value)} />
             </div>
           </div>
+
           <div>
             <Label>Descrição da loja</Label>
             <Input value={form.businessDescription} onChange={(event) => setField("businessDescription", event.target.value)} />
           </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label>WhatsApp oficial</Label>
@@ -111,10 +128,12 @@ export default function Settings() {
               <Input placeholder="CPF, CNPJ, email, telefone ou chave aleatória" value={form.pixKey} onChange={(event) => setField("pixKey", event.target.value)} />
             </div>
           </div>
+
           <div>
             <Label>Instagram</Label>
             <Input placeholder="@usuario" value={form.instagram} onChange={(event) => setField("instagram", event.target.value)} />
           </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label>Localização</Label>
@@ -125,10 +144,23 @@ export default function Settings() {
               <Input value={form.serviceNote} onChange={(event) => setField("serviceNote", event.target.value)} />
             </div>
           </div>
+
           <div>
             <Label>URL da política de privacidade</Label>
             <Input placeholder="https://..." value={form.privacyPolicyUrl} onChange={(event) => setField("privacyPolicyUrl", event.target.value)} />
           </div>
+
+          <div className="grid grid-cols-1 gap-4 rounded-lg border border-pink-100 bg-pink-50/40 p-4 sm:grid-cols-2">
+            <div>
+              <Label>Custo fixo para fichas técnicas</Label>
+              <Input type="number" min="0" step="0.01" value={form.recipeFixedCost} onChange={(event) => setField("recipeFixedCost", event.target.value)} />
+            </div>
+            <div>
+              <Label>Custo variável para fichas técnicas</Label>
+              <Input type="number" min="0" step="0.01" value={form.recipeVariableCost} onChange={(event) => setField("recipeVariableCost", event.target.value)} />
+            </div>
+          </div>
+
           <Button className="w-fit" onClick={() => save.mutate()} disabled={save.isPending} style={{ backgroundColor: "#7B2E68" }}>
             {save.isPending ? "Salvando..." : "Salvar"}
           </Button>

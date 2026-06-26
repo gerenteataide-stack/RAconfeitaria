@@ -49,10 +49,14 @@ export default function UsersPage() {
       method: "POST",
       body: JSON.stringify(form),
     }),
-    onSuccess: () => {
+    onSuccess: (createdUser) => {
       setForm(emptyForm);
+      qc.setQueryData<UserRow[]>(["auth-users"], (current = []) => [...current, createdUser].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
       qc.invalidateQueries({ queryKey: ["auth-users"] });
       toast({ title: "Usuário criado" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao criar usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     },
   });
 
@@ -71,11 +75,15 @@ export default function UsersPage() {
         body: JSON.stringify(payload),
       });
     },
-    onSuccess: () => {
+    onSuccess: (updatedUser) => {
+      qc.setQueryData<UserRow[]>(["auth-users"], (current = []) => current.map((user) => user.id === updatedUser.id ? updatedUser : user));
       setEditing(null);
       setForm(emptyForm);
       qc.invalidateQueries({ queryKey: ["auth-users"] });
       toast({ title: "Usuário atualizado" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar usuário", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     },
   });
 
@@ -164,7 +172,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) { setEditing(null); setForm(emptyForm); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar usuário</DialogTitle>
@@ -180,7 +188,7 @@ export default function UsersPage() {
             </div>
             <div>
               <Label>Nova senha</Label>
-              <Input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} placeholder="Deixe em branco para manter" />
+              <Input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} minLength={8} placeholder="Deixe em branco para manter" />
             </div>
             <div>
               <Label>Perfil</Label>
@@ -202,7 +210,7 @@ export default function UsersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancelar</Button>
             <Button onClick={() => updateUser.mutate()} disabled={updateUser.isPending}>
               {updateUser.isPending ? "Salvando..." : "Salvar"}
             </Button>

@@ -1,9 +1,8 @@
 import { Router, type IRouter } from "express";
-import { db, recipesTable, recipeIngredientsTable, productsTable, stockItemsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, recipesTable, recipeIngredientsTable, productsTable, settingsTable, stockItemsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
+import { z } from "zod/v4";
 import {
-  CreateRecipeBody,
-  UpdateRecipeBody,
   GetRecipeParams,
   UpdateRecipeParams,
   DeleteRecipeParams,
@@ -11,35 +10,59 @@ import {
 
 const router: IRouter = Router();
 
-async function getRecipeWithIngredients(recipeId: number) {
-  const [recipe] = await db.select().from(recipesTable).where(eq(recipesTable.id, recipeId));
-  if (!recipe) return null;
+const RecipeIngredientBody = z.object({
+  stockItemId: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().min(0),
+  unit: z.string().min(1).default("un"),
+});
 
-  const ingredients = await db.select().from(recipeIngredientsTable).where(eq(recipeIngredientsTable.recipeId, recipeId));
+const RecipeBody = z.object({
+  productId: z.coerce.number().int().positive(),
+  yield: z.coerce.number().int().positive(),
+  prepTime: z.coerce.number().int().min(0).default(0),
+  instructions: z.string().optional(),
+  ingredients: z.array(RecipeIngredientBody).default([]),
+});
 
-  // calculate cost per ingredient
-  const ingredientsWithCost = await Promise.all(
-    ingredients.map(async (ing) => {
-      const [si] = await db.select().from(stockItemsTable).where(eq(stockItemsTable.id, ing.stockItemId));
-      const unitCost = si ? Number(si.unitCost) : 0;
-      const cost = unitCost * Number(ing.quantity);
-      return {
-        stockItemId: ing.stockItemId,
-        stockItemName: ing.stockItemName,
-        quantity: Number(ing.quantity),
-        unit: ing.unit,
-        cost,
-      };
-    })
-  );
+const UpdateRecipeBody = RecipeBody.partial().extend({
+  ingredients: z.array(RecipeIngredientBody).optional(),
+});
 
-  const totalCost = ingredientsWithCost.reduce((acc, i) => acc + i.cost, 0);
+type RecipeRow = typeof recipesTable.$inferSelect;
+type IngredientRow = typeof recipeIngredientsTable.$inferSelect;
+type ProductRow = typeof productsTable.$inferSelect;
+type StockItemRow = typeof stockItemsTable.$inferSelect;
+
+function serializeRecipe(
+  recipe: RecipeRow,
+  ingredients: IngredientRow[],
+  stockItemsById: Map<number, StockItemRow>,
+  productsById: Map<number, ProductRow>,
+  globalCosts: { fixedCost: number; variableCost: number },
+) {
+  const ingredientsWithCost = ingredients.map((ingredient) => {
+    const stockItem = stockItemsById.get(ingredient.stockItemId);
+    const unitCost = stockItem ? Number(stockItem.unitCost) : 0;
+    const quantity = Number(ingredient.quantity);
+    return {
+      stockItemId: ingredient.stockItemId,
+      stockItemName: stockItem?.name ?? ingredient.stockItemName,
+      quantity,
+      unit: ingredient.unit,
+      cost: unitCost * quantity,
+    };
+  });
+
+  const ingredientsCost = ingredientsWithCost.reduce((acc, ingredient) => acc + ingredient.cost, 0);
+  const fixedCost = globalCosts.fixedCost;
+  const variableCost = globalCosts.variableCost;
+  const totalCost = ingredientsCost + fixedCost + variableCost;
   const unitCost = recipe.yield > 0 ? totalCost / recipe.yield : totalCost;
-
-  // get product price for CMV
-  const [product] = await db.select().from(productsTable).where(eq(productsTable.id, recipe.productId));
+  const product = productsById.get(recipe.productId);
   const productPrice = product ? Number(product.price) : 0;
   const cmvPercent = productPrice > 0 ? (unitCost / productPrice) * 100 : null;
+  const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost) / productPrice) * 100 : null;
+  const suggestedPrice = unitCost / 0.4;
 
   return {
     id: recipe.id,
@@ -47,31 +70,86 @@ async function getRecipeWithIngredients(recipeId: number) {
     productName: recipe.productName,
     yield: recipe.yield,
     prepTime: recipe.prepTime,
+    fixedCost,
+    variableCost,
     instructions: recipe.instructions ?? null,
+    ingredientsCost,
     totalCost,
     unitCost,
+    productPrice,
+    suggestedPrice,
     cmvPercent,
+    contributionMarginPercent,
     ingredients: ingredientsWithCost,
     createdAt: recipe.createdAt.toISOString(),
   };
 }
 
-router.get("/recipes", async (_req, res): Promise<void> => {
-  const recipes = await db.select().from(recipesTable).orderBy(recipesTable.productName);
+async function readRecipeGlobalCosts() {
+  const rows = await db.select().from(settingsTable).where(inArray(settingsTable.key, ["recipeFixedCost", "recipeVariableCost"]));
+  const settings = Object.fromEntries(rows.map((row) => [row.key, row.value ?? "0"]));
+  return {
+    fixedCost: Number(settings.recipeFixedCost ?? 0),
+    variableCost: Number(settings.recipeVariableCost ?? 0),
+  };
+}
 
-  const result = await Promise.all(recipes.map((r) => getRecipeWithIngredients(r.id)));
-  res.json(result.filter(Boolean));
+async function listRecipesSerialized(recipeId?: number) {
+  const recipes = recipeId
+    ? await db.select().from(recipesTable).where(eq(recipesTable.id, recipeId))
+    : await db.select().from(recipesTable).orderBy(recipesTable.productName);
+
+  if (recipes.length === 0) return [];
+
+  const recipeIds = recipes.map((recipe) => recipe.id);
+  const productIds = Array.from(new Set(recipes.map((recipe) => recipe.productId)));
+  const ingredients = await db.select().from(recipeIngredientsTable).where(inArray(recipeIngredientsTable.recipeId, recipeIds));
+  const stockItemIds = Array.from(new Set(ingredients.map((ingredient) => ingredient.stockItemId)));
+  const stockItems = stockItemIds.length > 0
+    ? await db.select().from(stockItemsTable).where(inArray(stockItemsTable.id, stockItemIds))
+    : [];
+  const products = await db.select().from(productsTable).where(inArray(productsTable.id, productIds));
+  const stockItemsById = new Map(stockItems.map((item) => [item.id, item]));
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const globalCosts = await readRecipeGlobalCosts();
+  const ingredientsByRecipeId = new Map<number, IngredientRow[]>();
+
+  for (const ingredient of ingredients) {
+    const current = ingredientsByRecipeId.get(ingredient.recipeId) ?? [];
+    current.push(ingredient);
+    ingredientsByRecipeId.set(ingredient.recipeId, current);
+  }
+
+  return recipes.map((recipe) => serializeRecipe(
+    recipe,
+    ingredientsByRecipeId.get(recipe.id) ?? [],
+    stockItemsById,
+    productsById,
+    globalCosts,
+  ));
+}
+
+async function getRecipeWithIngredients(recipeId: number) {
+  const [recipe] = await listRecipesSerialized(recipeId);
+  return recipe ?? null;
+}
+
+router.get("/recipes", async (_req, res): Promise<void> => {
+  res.json(await listRecipesSerialized());
 });
 
 router.post("/recipes", async (req, res): Promise<void> => {
-  const parsed = CreateRecipeBody.safeParse(req.body);
+  const parsed = RecipeBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [product] = await db.select().from(productsTable).where(eq(productsTable.id, parsed.data.productId));
   const productName = product?.name ?? `Produto #${parsed.data.productId}`;
 
   const { ingredients, ...recipeData } = parsed.data;
-  const [recipe] = await db.insert(recipesTable).values({ ...recipeData, productName }).returning();
+  const [recipe] = await db.insert(recipesTable).values({
+    ...recipeData,
+    productName,
+  }).returning();
 
   if (ingredients.length > 0) {
     const ingredientRows = await Promise.all(
@@ -108,8 +186,13 @@ router.patch("/recipes/:id", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const { ingredients, ...recipeData } = parsed.data;
+  const updateData: Record<string, unknown> = { ...recipeData };
+  if (recipeData.productId !== undefined) {
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, recipeData.productId));
+    updateData.productName = product?.name ?? `Produto #${recipeData.productId}`;
+  }
 
-  const [recipe] = await db.update(recipesTable).set(recipeData).where(eq(recipesTable.id, params.data.id)).returning();
+  const [recipe] = await db.update(recipesTable).set(updateData).where(eq(recipesTable.id, params.data.id)).returning();
   if (!recipe) { res.status(404).json({ error: "Recipe not found" }); return; }
 
   if (ingredients !== undefined) {

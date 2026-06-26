@@ -53,6 +53,8 @@ const SettingsBody = z.object({
   instagram: z.string().optional(),
   location: z.string().optional(),
   serviceNote: z.string().optional(),
+  recipeFixedCost: z.coerce.number().min(0).optional(),
+  recipeVariableCost: z.coerce.number().min(0).optional(),
 });
 
 function zone(row: typeof deliveryZonesTable.$inferSelect) {
@@ -210,19 +212,30 @@ async function readBusinessSettings() {
     privacyPolicyUrl: data.privacyPolicyUrl ?? "",
     businessName: data.businessName ?? "Rochelle Ataide",
     businessSubtitle: data.businessSubtitle ?? "Confeitaria Artesanal",
-    businessDescription: data.businessDescription ?? "Confeitaria artesanal feita com amor e dedicacao.",
+    businessDescription: data.businessDescription ?? "Confeitaria artesanal feita com amor e dedicação.",
     instagram: data.instagram ?? "@rochelleataideconfeitaria",
-    location: data.location ?? "Sao Paulo, SP",
+    location: data.location ?? "São Paulo, SP",
     serviceNote: data.serviceNote ?? "Atendimento com hora marcada",
+    recipeFixedCost: Number(data.recipeFixedCost ?? 0),
+    recipeVariableCost: Number(data.recipeVariableCost ?? 0),
   };
 }
 
 router.get("/settings/public", async (_req, res): Promise<void> => {
-  res.json(await readBusinessSettings());
+  const { recipeFixedCost: _recipeFixedCost, recipeVariableCost: _recipeVariableCost, ...publicSettings } = await readBusinessSettings();
+  res.json(publicSettings);
 });
 
 router.get("/settings/business", requireAuth, requirePermission("*"), async (_req, res): Promise<void> => {
   res.json(await readBusinessSettings());
+});
+
+router.get("/settings/recipe-costs", requireAuth, async (_req, res): Promise<void> => {
+  const settings = await readBusinessSettings();
+  res.json({
+    recipeFixedCost: settings.recipeFixedCost,
+    recipeVariableCost: settings.recipeVariableCost,
+  });
 });
 
 router.put("/settings/business", requireAuth, requirePermission("*"), async (req, res): Promise<void> => {

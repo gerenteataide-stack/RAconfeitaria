@@ -403,12 +403,19 @@ export interface Recipe {
   productName: string;
   yield: number;
   prepTime: number;
+  fixedCost: number;
+  variableCost: number;
   /** @nullable */
   instructions?: string | null;
+  ingredientsCost: number;
   totalCost: number;
   unitCost: number;
+  productPrice: number;
+  suggestedPrice: number;
   /** @nullable */
   cmvPercent?: number | null;
+  /** @nullable */
+  contributionMarginPercent?: number | null;
   ingredients?: RecipeIngredient[];
   createdAt: string;
 }
@@ -422,6 +429,7 @@ export interface RecipeInput {
 }
 
 export interface RecipeUpdate {
+  productId?: number;
   yield?: number;
   prepTime?: number;
   instructions?: string;
@@ -548,4 +556,3 @@ month?: string;
 export type GetDreParams = {
 month?: string;
 };
-

@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useListRecipes,
   useListProducts,
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/api";
 import { Plus, Pencil, Trash2, BookOpen, Loader2 } from "lucide-react";
 
 interface RecipeFormState {
@@ -42,6 +43,11 @@ const emptyForm: RecipeFormState = {
   prepTime: "30",
   instructions: "",
   ingredients: [{ stockItemId: "", quantity: "1", unit: "g" }],
+};
+
+type BusinessSettings = {
+  recipeFixedCost: number;
+  recipeVariableCost: number;
 };
 
 function fmtCurrency(value: number) {
@@ -85,6 +91,10 @@ export default function Recipes() {
   const { data: recipes = [], isLoading } = useListRecipes();
   const { data: products = [] } = useListProducts();
   const { data: stockItems = [] } = useListStockItems();
+  const { data: settings } = useQuery({
+    queryKey: ["recipe-costs"],
+    queryFn: () => apiRequest<BusinessSettings>("/api/settings/recipe-costs"),
+  });
   const createRecipe = useCreateRecipe();
   const updateRecipe = useUpdateRecipe();
   const deleteRecipe = useDeleteRecipe();
@@ -96,6 +106,23 @@ export default function Recipes() {
 
   const productsById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
   const stockItemsById = useMemo(() => new Map(stockItems.map((item) => [item.id, item])), [stockItems]);
+  const pricingPreview = useMemo(() => {
+    const ingredientsCost = form.ingredients.reduce((total, ingredient) => {
+      const stockItem = stockItemsById.get(Number(ingredient.stockItemId));
+      return total + (Number(stockItem?.unitCost ?? 0) * Number(ingredient.quantity || 0));
+    }, 0);
+    const fixedCost = Number(settings?.recipeFixedCost ?? 0);
+    const variableCost = Number(settings?.recipeVariableCost ?? 0);
+    const totalCost = ingredientsCost + fixedCost + variableCost;
+    const yieldAmount = Math.max(Number(form.yield || 1), 1);
+    const unitCost = totalCost / yieldAmount;
+    const suggestedPrice = unitCost / 0.4;
+    const product = productsById.get(Number(form.productId));
+    const productPrice = Number(product?.price ?? 0);
+    const contributionMarginPercent = productPrice > 0 ? ((productPrice - unitCost) / productPrice) * 100 : null;
+
+    return { ingredientsCost, fixedCost, variableCost, totalCost, unitCost, suggestedPrice, productPrice, contributionMarginPercent };
+  }, [form.ingredients, form.productId, form.yield, productsById, settings?.recipeFixedCost, settings?.recipeVariableCost, stockItemsById]);
 
   function resetForm() {
     setForm(emptyForm);
@@ -261,6 +288,25 @@ export default function Recipes() {
                   <span className="font-semibold">{fmtCurrency(recipe.totalCost)}</span>
                 </div>
 
+                <div className="grid grid-cols-1 gap-2 rounded-lg border border-pink-100 bg-white p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Preço escolhido</span>
+                    <span className="font-semibold">{fmtCurrency(recipe.productPrice ?? Number(product?.price ?? 0))}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Preço sugerido (60%)</span>
+                    <span className="font-semibold" style={{ color: "#7B2E68" }}>{fmtCurrency(recipe.suggestedPrice ?? 0)}</span>
+                  </div>
+                  {recipe.contributionMarginPercent != null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Margem de contribuição</span>
+                      <span className={recipe.contributionMarginPercent >= 60 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>
+                        {recipe.contributionMarginPercent.toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {recipe.cmvPercent != null && (
                   <div className="text-sm text-muted-foreground">
                     CMV estimado: <span className={recipe.cmvPercent <= 30 ? "text-green-600" : recipe.cmvPercent <= 50 ? "text-amber-600" : "text-red-600"}>{recipe.cmvPercent.toFixed(0)}%</span>
@@ -348,6 +394,30 @@ export default function Recipes() {
                     </Button>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 rounded-lg border border-pink-100 bg-pink-50/40 p-4 md:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Custo total</p>
+                <p className="font-semibold">{fmtCurrency(pricingPreview.totalCost)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Fixo {fmtCurrency(pricingPreview.fixedCost)} + variável {fmtCurrency(pricingPreview.variableCost)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Custo por unidade</p>
+                <p className="font-semibold">{fmtCurrency(pricingPreview.unitCost)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Preço sugerido 60%</p>
+                <p className="font-semibold" style={{ color: "#7B2E68" }}>{fmtCurrency(pricingPreview.suggestedPrice)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Margem atual</p>
+                <p className={pricingPreview.contributionMarginPercent != null && pricingPreview.contributionMarginPercent >= 60 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>
+                  {pricingPreview.contributionMarginPercent != null ? `${pricingPreview.contributionMarginPercent.toFixed(0)}%` : "Sem preço"}
+                </p>
               </div>
             </div>
           </div>
