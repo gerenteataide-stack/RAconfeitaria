@@ -20,8 +20,10 @@ import Marketing from "@/pages/marketing";
 import Delivery from "@/pages/delivery";
 import Notifications from "@/pages/notifications";
 import Settings from "@/pages/settings";
-import CostsPage from "@/pages/costs";
-import PricingPage from "@/pages/pricing";
+import PricingIngredientsPage from "@/pages/pricing-ingredients";
+import PricingTechnicalSheetsPage from "@/pages/pricing-technical-sheets";
+import PricingGeneralCostsPage from "@/pages/pricing-general-costs";
+import PricingSimulatorPage from "@/pages/pricing-simulator";
 import Login from "@/pages/login";
 import UsersPage from "@/pages/users";
 import NotFound from "@/pages/not-found";
@@ -65,12 +67,16 @@ function AdminRouter() {
         <Route path="/production" component={Production} />
         <Route path="/stock" component={Stock} />
         <Route path="/recipes" component={Recipes} />
+        <Route path="/admin/ingredientes" component={PricingIngredientsPage} />
+        <Route path="/admin/fichas-tecnicas" component={PricingTechnicalSheetsPage} />
+        <Route path="/admin/custos-gerais" component={PricingGeneralCostsPage} />
+        <Route path="/admin/precificacao" component={PricingSimulatorPage} />
         <Route path="/financial" component={Financial} />
         <Route path="/marketing" component={Marketing} />
         <Route path="/delivery" component={Delivery} />
         <Route path="/notifications" component={Notifications} />
-        <Route path="/costs" component={CostsPage} />
-        <Route path="/pricing" component={PricingPage} />
+        <Route path="/costs" component={() => <Redirect to="/admin/custos-gerais" />} />
+        <Route path="/pricing" component={() => <Redirect to="/admin/precificacao" />} />
         <Route path="/settings" component={Settings} />
         <Route path="/users" component={UsersPage} />
         <Route component={NotFound} />
