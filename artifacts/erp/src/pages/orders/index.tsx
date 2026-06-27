@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+﻿import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -7,6 +7,7 @@ import {
   Check,
   Clock,
   Filter,
+  Megaphone,
   MapPin,
   Package,
   Plus,
@@ -61,11 +62,14 @@ export default function Orders() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-  const { data: orders = [], isLoading } = useListOrders(selectedDate ? { date: selectedDate } : undefined);
+  const orderParams = selectedDate ? { date: selectedDate } : undefined;
+  const { data: orders = [], isLoading } = useListOrders(orderParams, {
+    query: { queryKey: getListOrdersQueryKey(orderParams), refetchInterval: 15000 },
+  });
   const updateStatus = useUpdateOrderStatus({
     mutation: {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListOrdersQueryKey(selectedDate ? { date: selectedDate } : undefined) });
+        qc.invalidateQueries({ queryKey: getListOrdersQueryKey(orderParams) });
         toast({ title: "Pedido atualizado" });
       },
       onError: () => toast({ title: "Erro ao atualizar pedido", variant: "destructive" }),
@@ -79,6 +83,7 @@ export default function Orders() {
     if (statusId === "new") return orders.filter((order) => order.status === "new" || order.status === "awaiting_payment");
     return orders.filter((order) => order.status === statusId);
   };
+  const newOrders = getColumnOrders("new");
 
   function changeStatus(order: Order, status: OrderStatusUpdateStatus) {
     updateStatus.mutate({ id: order.id, data: { status } });
@@ -119,6 +124,13 @@ export default function Orders() {
           Filtros
         </Button>
       </div>
+
+      {newOrders.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <Megaphone className="h-5 w-5" />
+          <span>{newOrders.length} pedido(s) novo(s) aguardando atendimento. Confira a coluna Novos.</span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-x-auto pb-4">
         <div className="flex h-full min-w-max gap-4">
@@ -197,3 +209,4 @@ export default function Orders() {
     </div>
   );
 }
+

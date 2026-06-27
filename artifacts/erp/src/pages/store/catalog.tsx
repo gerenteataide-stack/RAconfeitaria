@@ -216,7 +216,7 @@ export default function StoreCatalog() {
                       </div>
                     )}
                     {!product.available && (
-                      <div className="absolute inset-x-0 top-6 -rotate-6 bg-red-600 py-2 text-center text-sm font-bold uppercase tracking-wide text-white shadow">
+                      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[145%] -translate-x-1/2 -translate-y-1/2 -rotate-12 bg-red-600 py-2 text-center text-sm font-bold uppercase tracking-wide text-white shadow-lg ring-1 ring-red-700/30">
                         Esgotado
                       </div>
                     )}

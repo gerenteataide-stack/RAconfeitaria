@@ -10,7 +10,6 @@ import {
   Package,
   Settings,
   ShoppingCart,
-  Store,
   Truck,
   Users,
 } from "lucide-react";
@@ -28,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth";
 
@@ -44,86 +44,86 @@ const NAV_ITEMS = [
   { title: "Precificação", url: "/admin/precificacao", icon: Calculator, permission: "pricing" },
   { title: "Financeiro", url: "/financial", icon: DollarSign, permission: "financial" },
   { title: "Marketing", url: "/marketing", icon: Megaphone, permission: "marketing" },
-  { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },  { title: "Usuários", url: "/users", icon: Users, permission: "users" },
+  { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },
+  { title: "Usuários", url: "/users", icon: Users, permission: "users" },
   { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
-
 ];
 
-const STORE_LINK = { title: "Ver Loja Pública", url: "/cardapio", icon: Store };
-
-export function AppLayout({ children }: { children: React.ReactNode }) {
+function LayoutShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, can, logout } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
   const visibleItems = NAV_ITEMS.filter((item) => can(item.permission));
 
+  function closeMobileMenu() {
+    if (isMobile) setOpenMobile(false);
+  }
+
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background text-foreground">
-        <Sidebar className="border-r border-sidebar-border bg-sidebar">
-          <SidebarHeader className="p-4">
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo" className="h-10 w-10 shrink-0 object-contain" />
-              <div>
-                <h1 className="font-serif text-base font-bold leading-tight text-primary">Rochelle Ataide</h1>
-                <p className="text-xs text-muted-foreground">Confeitaria</p>
-              </div>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Menu</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {visibleItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={location.startsWith(item.url)}>
-                        <Link href={item.url} className="flex items-center gap-3">
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-          <SidebarFooter className="border-t border-sidebar-border p-3">
-            <SidebarMenu>
-              {user && (
-                <SidebarMenuItem>
-                  <div className="mb-3 rounded-md border border-sidebar-border bg-white/70 p-3">
-                    <p className="truncate text-sm font-medium text-primary">{user.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{user.roleLabel}</p>
-                    <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={logout}>
-                      Sair
-                    </Button>
-                  </div>
-                </SidebarMenuItem>
-              )}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link href={STORE_LINK.url} className="flex items-center gap-3 text-xs font-medium" style={{ color: "#8A9A75" }}>
-                    <STORE_LINK.icon className="h-4 w-4" />
-                    <span>{STORE_LINK.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
-          <div className="mb-4 flex items-center gap-3 md:hidden">
-            <SidebarTrigger />
+    <div className="flex min-h-screen w-full bg-background text-foreground">
+      <Sidebar className="border-r border-sidebar-border bg-sidebar">
+        <SidebarHeader className="p-4">
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Logo" className="h-10 w-10 shrink-0 object-contain" />
             <div>
-              <p className="text-sm font-semibold text-primary">Rochelle Ataide</p>
-              <p className="text-xs text-muted-foreground">Menu da gestão</p>
+              <h1 className="font-serif text-base font-bold leading-tight text-primary">Rochelle Ataide</h1>
+              <p className="text-xs text-muted-foreground">Confeitaria</p>
             </div>
           </div>
-          {children}
-        </main>
-      </div>
-    </SidebarProvider>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Menu</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location.startsWith(item.url)}>
+                      <Link href={item.url} className="flex items-center gap-3" onClick={closeMobileMenu}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter className="border-t border-sidebar-border p-3">
+          <SidebarMenu>
+            {user && (
+              <SidebarMenuItem>
+                <div className="rounded-md border border-sidebar-border bg-white/70 p-3">
+                  <p className="truncate text-sm font-medium text-primary">{user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.roleLabel}</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={logout}>
+                    Sair
+                  </Button>
+                </div>
+              </SidebarMenuItem>
+            )}
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
+        <div className="mb-4 flex items-center gap-3 md:hidden">
+          <SidebarTrigger />
+          <div>
+            <p className="text-sm font-semibold text-primary">Rochelle Ataide</p>
+            <p className="text-xs text-muted-foreground">Menu da gestão</p>
+          </div>
+        </div>
+        {children}
+      </main>
+    </div>
   );
 }
 
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <LayoutShell>{children}</LayoutShell>
+    </SidebarProvider>
+  );
+}

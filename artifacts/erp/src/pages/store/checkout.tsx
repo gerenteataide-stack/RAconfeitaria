@@ -280,7 +280,7 @@ export default function StoreCheckout() {
                           <Plus className="w-2.5 h-2.5" />
                         </button>
                         <button type="button" onClick={() => removeItem(item.productId)}
-                          className="text-xs text-muted-foreground hover:text-destructive ml-1">âœ•</button>
+                          className="text-xs text-muted-foreground hover:text-destructive ml-1">×</button>
                       </div>
                     </div>
                     <span className="text-sm font-semibold shrink-0" style={{ color: "#7B2E68" }}>{fmt(item.subtotal)}</span>
@@ -322,7 +322,7 @@ export default function StoreCheckout() {
 
               <Button type="submit" className="w-full py-5 text-base gap-2" style={{ backgroundColor: "#7B2E68" }}
                 disabled={createOrder.isPending}>
-                {createOrder.isPending ? "Enviando..." : "Confirmar pedido â†’"}
+                {createOrder.isPending ? "Enviando..." : "Confirmar pedido →"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
                 O pagamento será combinado pelo WhatsApp. Você pode pagar pelo PicPay.
@@ -334,6 +334,7 @@ export default function StoreCheckout() {
     </div>
   );
 }
+
 
 
 
