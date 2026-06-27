@@ -11,7 +11,18 @@ import { useToast } from "@/hooks/use-toast";
 
 type FinancialEntry = { id: number; type: "receivable" | "payable"; description: string; amount: number; dueDate: string; paid: boolean; counterpart: string | null; category: string | null };
 type CashFlow = { totalInflows: number; totalOutflows: number; balance: number };
-type Dre = { revenue: number; productCost: number; expenses: number; netProfit: number; cmvPercent: number };
+type Dre = {
+  revenue: number;
+  productCost: number;
+  expenses: number;
+  fixedCosts: number;
+  variableSalesCost: number;
+  contributionMargin: number;
+  contributionMarginPercent: number;
+  breakEvenRevenue: number;
+  netProfit: number;
+  cmvPercent: number;
+};
 const month = new Date().toISOString().slice(0, 7);
 const empty = { type: "receivable" as "receivable" | "payable", description: "", amount: "", dueDate: new Date().toISOString().slice(0, 10), counterpart: "", category: "" };
 
@@ -33,10 +44,15 @@ export default function Financial() {
   return (
     <div className="flex flex-col gap-6">
       <div><h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Financeiro</h1><p className="text-sm text-muted-foreground">Contas a receber, contas a pagar, fluxo de caixa e DRE.</p></div>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Entradas</p><p className="text-xl font-bold text-green-600">{money(cash?.totalInflows ?? 0)}</p></div>
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Saídas</p><p className="text-xl font-bold text-red-600">{money(cash?.totalOutflows ?? 0)}</p></div>
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Saldo</p><p className="text-xl font-bold">{money(cash?.balance ?? 0)}</p></div>
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <p className="text-sm text-muted-foreground">Ponto de equilíbrio</p>
+          <p className="text-xl font-bold" style={{ color: "#7A8B68" }}>{money(dre?.breakEvenRevenue ?? 0)}</p>
+          <p className="text-xs text-muted-foreground">Margem {((dre?.contributionMarginPercent ?? 0) * 100).toFixed(1)}%</p>
+        </div>
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Lucro DRE</p><p className="text-xl font-bold" style={{ color: "#7B2E68" }}>{money(dre?.netProfit ?? 0)}</p><p className="text-xs text-muted-foreground">CMV {(dre?.cmvPercent ?? 0).toFixed(1)}%</p></div>
       </div>
       <section className="rounded-lg border bg-white p-4 shadow-sm">

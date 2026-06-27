@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, financialEntriesTable } from "@workspace/db";
+import { db, financialEntriesTable, generalCostsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
   CreateFinancialEntryBody,
@@ -104,13 +104,26 @@ router.get("/financial/dre", async (req, res): Promise<void> => {
   const month = qp.data.month ?? new Date().toISOString().slice(0, 7);
   const entries = await db.select().from(financialEntriesTable)
     .where(sql`to_char(due_date::date, 'YYYY-MM') = ${month}`);
+  const generalCosts = await db.select().from(generalCostsTable)
+    .where(eq(generalCostsTable.active, true));
 
   const revenue = entries.filter((e) => e.type === "receivable").reduce((acc, e) => acc + Number(e.amount), 0);
   const allCosts = entries.filter((e) => e.type === "payable").reduce((acc, e) => acc + Number(e.amount), 0);
   const productCost = allCosts * 0.6; // estimate 60% are product costs
   const expenses = allCosts * 0.4;
   const grossProfit = revenue - productCost;
-  const netProfit = revenue - allCosts;
+  const variablePercent = generalCosts
+    .filter((cost) => cost.type === "variable" && cost.applyToDirectSale)
+    .reduce((acc, cost) => acc + Number(cost.value), 0);
+  const variableSalesCost = revenue * (variablePercent / 100);
+  const contributionMargin = grossProfit - variableSalesCost;
+  const contributionMarginPercent = revenue > 0 ? contributionMargin / revenue : 0;
+  const registeredFixedCosts = generalCosts
+    .filter((cost) => cost.type === "monthly_fixed")
+    .reduce((acc, cost) => acc + Number(cost.value), 0);
+  const fixedCosts = registeredFixedCosts > 0 ? registeredFixedCosts : expenses;
+  const breakEvenRevenue = contributionMarginPercent > 0 ? fixedCosts / contributionMarginPercent : 0;
+  const netProfit = contributionMargin - fixedCosts;
   const cmvPercent = revenue > 0 ? (productCost / revenue) * 100 : 0;
 
   res.json({
@@ -119,6 +132,11 @@ router.get("/financial/dre", async (req, res): Promise<void> => {
     productCost,
     grossProfit,
     expenses,
+    fixedCosts,
+    variableSalesCost,
+    contributionMargin,
+    contributionMarginPercent,
+    breakEvenRevenue,
     netProfit,
     cmvPercent,
   });
