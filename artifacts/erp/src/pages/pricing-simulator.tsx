@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, RefreshCw, Save, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -164,6 +164,25 @@ export default function PricingSimulatorPage() {
             <div><Label>Margem desejada %</Label><Input type="number" min="1" max="99" step="0.01" value={form.targetMargin} onChange={(event) => setForm({ ...form, targetMargin: event.target.value })} /></div>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg border bg-white p-3">
+              <p className="text-xs text-muted-foreground">Preço analisado</p>
+              <p className="font-semibold text-primary">{fmtCurrency(directSalePrice)}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-3">
+              <p className="text-xs text-muted-foreground">CMV alvo</p>
+              <p className="font-semibold text-green-700">{fmtPercent(targetCMV)}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-3">
+              <p className="text-xs text-muted-foreground">Margem desejada</p>
+              <p className="font-semibold text-green-700">{fmtPercent(targetMargin)}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-3">
+              <p className="text-xs text-muted-foreground">Preço sugerido</p>
+              <p className="font-semibold text-primary">{direct ? fmtCurrency(direct.suggestedDirectPrice) : "-"}</p>
+            </div>
+          </div>
+
           <div className="grid gap-3 rounded-lg border border-pink-100 bg-pink-50/40 p-4 md:grid-cols-[1fr_180px_160px_auto]">
             <div><Label>Custo exclusivo do produto</Label><Input placeholder="Embalagem, etiqueta, topper..." value={extra.name} onChange={(event) => setExtra({ ...extra, name: event.target.value })} /></div>
             <div>
@@ -230,3 +249,4 @@ export default function PricingSimulatorPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Megaphone, Plus, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -113,7 +113,7 @@ export default function Marketing() {
               <div key={item.id} className="flex items-center justify-between rounded-md border p-3">
                 <div>
                   <div className="flex items-center gap-2"><span className="font-mono font-semibold">{item.code}</span><Badge>{item.active ? "Ativo" : "Inativo"}</Badge></div>
-                  <p className="text-sm text-muted-foreground">{item.description || "Sem descrição"} · {item.type === "percent" ? `${item.value}%` : item.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                  <p className="text-sm text-muted-foreground">{item.description || "Sem descrição"} - {item.type === "percent" ? `${item.value}%` : item.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => toggleCoupon.mutate(item)}>
@@ -127,7 +127,8 @@ export default function Marketing() {
         </section>
 
         <section className="rounded-lg border bg-white p-4 shadow-sm">
-          <h2 className="mb-4 font-semibold">Fidelidade</h2>
+          <h2 className="mb-1 font-semibold">Cartão fidelidade</h2>
+          <p className="mb-4 text-sm text-muted-foreground">Edite pontos por compra e cashback exibido ao cliente na loja.</p>
           <div className="grid gap-4">
             <div>
               <Label>Cashback (%)</Label>
@@ -144,3 +145,4 @@ export default function Marketing() {
     </div>
   );
 }
+

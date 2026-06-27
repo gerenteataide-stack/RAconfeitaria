@@ -40,12 +40,15 @@ async function ensureCustomerForOrder(orderData: {
 }) {
   if (orderData.customerId || !orderData.customerName || !orderData.customerPhone) return orderData.customerId;
 
-  const [existing] = await db.select().from(customersTable).where(eq(customersTable.phone, orderData.customerPhone)).limit(1);
+  const phoneDigits = orderData.customerPhone.replace(/\D/g, "");
+  const [existing] = await db.select().from(customersTable)
+    .where(sql`regexp_replace(coalesce(${customersTable.phone}, ''), '\\D', '', 'g') = ${phoneDigits} OR regexp_replace(coalesce(${customersTable.whatsapp}, ''), '\\D', '', 'g') = ${phoneDigits}`)
+    .limit(1);
   if (existing) return existing.id;
 
   const [customer] = await db.insert(customersTable).values({
     name: orderData.customerName,
-    phone: orderData.customerPhone,
+    phone: phoneDigits || orderData.customerPhone,
     whatsapp: orderData.customerPhone,
     address: orderData.deliveryAddress,
   }).returning();

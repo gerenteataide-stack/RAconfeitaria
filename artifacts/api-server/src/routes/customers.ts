@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, customersTable, ordersTable, orderItemsTable } from "@workspace/db";
-import { eq, ilike, desc } from "drizzle-orm";
+import { eq, ilike, desc, sql } from "drizzle-orm";
 import {
   CreateCustomerBody,
   UpdateCustomerBody,
@@ -49,6 +49,18 @@ router.post("/customers", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [c] = await db.insert(customersTable).values(parsed.data).returning();
   res.status(201).json(formatCustomer(c as Record<string, unknown>));
+});
+
+router.get("/customers/lookup", async (req, res): Promise<void> => {
+  const phone = typeof req.query.whatsapp === "string" ? req.query.whatsapp.replace(/\D/g, "") : "";
+  if (phone.length < 8) { res.status(400).json({ error: "Informe um WhatsApp válido" }); return; }
+
+  const rows = await db.select().from(customersTable)
+    .where(sql`regexp_replace(coalesce(${customersTable.phone}, ''), '\\D', '', 'g') = ${phone} OR regexp_replace(coalesce(${customersTable.whatsapp}, ''), '\\D', '', 'g') = ${phone}`)
+    .limit(1);
+
+  if (!rows[0]) { res.status(404).json({ error: "Cliente não encontrado" }); return; }
+  res.json(formatCustomer(rows[0] as Record<string, unknown>));
 });
 
 router.get("/customers/:id", async (req, res): Promise<void> => {

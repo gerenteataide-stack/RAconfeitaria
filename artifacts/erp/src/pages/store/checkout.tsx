@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Truck, Store, CalendarDays, ShoppingBag, Minus, Plus } from "lucide-react";
@@ -35,6 +35,23 @@ type AppliedCoupon = {
   discount: number;
 };
 
+type PublicSettings = {
+  cashbackPercent: number;
+  loyaltyPointsPerCurrency: number;
+};
+
+type StoreCustomer = {
+  id: number;
+  name: string;
+  phone: string;
+  whatsapp: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  loyaltyPoints: number;
+  totalSpent: number;
+  totalOrders: number;
+};
+
 function normalize(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -50,6 +67,11 @@ export default function StoreCheckout() {
   const createOrder = useCreateOrder();
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [knownCustomer, setKnownCustomer] = useState<StoreCustomer | null>(null);
+  const { data: publicSettings } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
+  });
   const { data: deliveryZones = [] } = useQuery({
     queryKey: ["public-delivery-zones"],
     queryFn: () => apiRequest<DeliveryZone[]>("/api/delivery-zones?active=true"),
@@ -79,9 +101,48 @@ export default function StoreCheckout() {
   const deliveryFee = form.deliveryType === "delivery" ? selectedZone?.fee ?? 0 : 0;
   const discount = Math.min(total, appliedCoupon?.discount ?? 0);
   const grandTotal = total - discount + deliveryFee;
+  const cashbackPercent = Number(publicSettings?.cashbackPercent ?? 0);
+  const expectedCashback = cashbackPercent > 0 ? (total - discount) * (cashbackPercent / 100) : 0;
+
+  useEffect(() => {
+    const saved = localStorage.getItem("ra-store-customer");
+    if (!saved) return;
+    try {
+      const customer = JSON.parse(saved) as StoreCustomer;
+      setKnownCustomer(customer);
+      setForm((prev) => ({
+        ...prev,
+        customerName: prev.customerName || customer.name,
+        customerPhone: prev.customerPhone || (customer.whatsapp || customer.phone),
+        deliveryAddress: prev.deliveryAddress || customer.address || "",
+        neighborhood: prev.neighborhood || customer.neighborhood || "",
+      }));
+      void lookupCustomer(customer.whatsapp || customer.phone);
+    } catch {
+      localStorage.removeItem("ra-store-customer");
+    }
+  }, []);
 
   function handleChange(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function lookupCustomer(phoneValue = form.customerPhone) {
+    const phone = onlyDigits(phoneValue);
+    if (phone.length < 8) return;
+    try {
+      const customer = await apiRequest<StoreCustomer>(`/api/customers/lookup?whatsapp=${phone}`);
+      setKnownCustomer(customer);
+      localStorage.setItem("ra-store-customer", JSON.stringify(customer));
+      setForm((prev) => ({
+        ...prev,
+        customerName: prev.customerName || customer.name,
+        deliveryAddress: prev.deliveryAddress || customer.address || "",
+        neighborhood: prev.neighborhood || customer.neighborhood || "",
+      }));
+    } catch {
+      setKnownCustomer(null);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,6 +186,17 @@ export default function StoreCheckout() {
           items: discountedItems,
         },
       });
+      localStorage.setItem("ra-store-customer", JSON.stringify({
+        id: knownCustomer?.id ?? 0,
+        name: form.customerName,
+        phone: form.customerPhone,
+        whatsapp: form.customerPhone,
+        address: form.deliveryAddress,
+        neighborhood: form.neighborhood,
+        loyaltyPoints: knownCustomer?.loyaltyPoints ?? 0,
+        totalSpent: knownCustomer?.totalSpent ?? 0,
+        totalOrders: knownCustomer?.totalOrders ?? 0,
+      }));
       clear();
       navigate(`/cardapio/sucesso?id=${order.id}`);
     } catch {
@@ -182,8 +254,17 @@ export default function StoreCheckout() {
                 <div>
                   <Label htmlFor="phone">WhatsApp *</Label>
                   <Input id="phone" placeholder="(11) 99999-9999" value={form.customerPhone}
-                    onChange={(e) => handleChange("customerPhone", e.target.value)} className="mt-1" required />
+                    onChange={(e) => handleChange("customerPhone", e.target.value)}
+                    onBlur={() => lookupCustomer()}
+                    className="mt-1" required />
                 </div>
+                {knownCustomer && (
+                  <div className="rounded-xl border border-pink-100 bg-pink-50 p-3 text-sm">
+                    <p className="font-medium" style={{ color: "#7B2E68" }}>Olá, {knownCustomer.name}</p>
+                    <p className="text-muted-foreground">{knownCustomer.loyaltyPoints} ponto(s) acumulado(s) no cartão fidelidade.</p>
+                    {cashbackPercent > 0 && <p className="text-green-700">Cashback ativo: você pode ganhar {fmt(expectedCashback)} nesta compra.</p>}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -334,6 +415,7 @@ export default function StoreCheckout() {
     </div>
   );
 }
+
 
 
 
