@@ -127,12 +127,13 @@ export default function PricingSimulatorPage() {
 
   const direct = result?.direct;
   const marketplace = result?.marketplace;
+  const soldPaidCost = (row: PricingResult) => row.extraCost + row.variableCost;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-serif text-3xl font-bold text-primary">Precificação Inteligente / CMV</h1>
+          <h1 className="font-serif text-3xl font-bold text-primary">Precificação Inteligente / Margem</h1>
           {isFetching && <Badge variant="outline" className="gap-1"><RefreshCw className="h-3 w-3 animate-spin" /> Recalculando</Badge>}
         </div>
         <p className="text-sm text-muted-foreground">Cálculo unitário por produto, sem previsão de vendas mensais. Qualquer alteração recalcula os resultados finais.</p>
@@ -197,12 +198,13 @@ export default function PricingSimulatorPage() {
               <CardHeader><CardTitle>{row!.channel === "direct" ? "Venda direta" : "Marketplace"}</CardTitle></CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                  <div><p className="text-xs text-muted-foreground">Custo de produção</p><p className="font-semibold">{fmtCurrency(row!.ingredientCost)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Custos extras</p><p className="font-semibold">{fmtCurrency(row!.extraCost + row!.variableCost)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Custo do produto</p><p className="font-semibold">{fmtCurrency(row!.ingredientCost)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Lucro bruto</p><p className={row!.grossProfit >= 0 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>{fmtCurrency(row!.grossProfit)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Custo vendeu pagou</p><p className="font-semibold">{fmtCurrency(soldPaidCost(row!))}</p></div>
                   <div><p className="text-xs text-muted-foreground">Custo total</p><p className="font-semibold">{fmtCurrency(row!.totalCost)}</p></div>
                   <div><p className="text-xs text-muted-foreground">CMV</p><p className={`font-semibold ${cmvClass(row!.cmvPercent)}`}>{fmtPercent(row!.cmvPercent)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Margem contribuição</p><p className={`font-semibold ${marginClass(row!.contributionMarginPercent, targetMargin)}`}>{fmtPercent(row!.contributionMarginPercent)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Lucro estimado</p><p className={row!.netProfit >= 0 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>{fmtCurrency(row!.netProfit)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Margem em R$</p><p className={row!.contributionMargin >= 0 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>{fmtCurrency(row!.contributionMargin)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Preço sugerido</p><p className="font-semibold text-primary">{fmtCurrency(row!.channel === "direct" ? row!.suggestedDirectPrice : row!.suggestedMarketplacePrice)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Preço atual</p><p className="font-semibold">{fmtCurrency(row!.channel === "direct" ? directSalePrice : (marketplacePrice || row!.suggestedMarketplacePrice))}</p></div>
                 </div>

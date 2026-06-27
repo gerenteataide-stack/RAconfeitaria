@@ -225,7 +225,7 @@ async function buildSimulation(input: z.infer<typeof SimulationBody>, channel: "
     cmvStatus: cmvStatus(cmvPercent),
     contributionMargin: contribution.value,
     contributionMarginPercent: contribution.percent,
-    grossProfit: contribution.value,
+    grossProfit: salePrice - ingredientCost,
     netProfit: net.value,
     netProfitPercent: net.percent,
     suggestedDirectPrice,
