@@ -187,13 +187,16 @@ async function buildSimulation(input: z.infer<typeof SimulationBody>, channel: "
   const [sheet] = await db.select().from(technicalSheetsTable).where(eq(technicalSheetsTable.productId, input.productId));
   const extraRows = await db.select().from(productExtraCostsTable).where(and(eq(productExtraCostsTable.productId, input.productId), eq(productExtraCostsTable.active, true)));
   const generalRows = await db.select().from(generalCostsTable).where(eq(generalCostsTable.active, true));
+  const activeProducts = await db.select({ id: productsTable.id }).from(productsTable).where(eq(productsTable.available, true));
+  const productAllocationBase = Math.max(activeProducts.length, 1);
   const salePrice = channel === "direct" ? input.directSalePrice : Number(input.marketplacePrice ?? input.directSalePrice);
   const ingredientCost = Number(sheet?.unitCost ?? 0);
   const extraFixed = extraRows.filter((item) => item.type === "fixed").reduce((sum, item) => sum + Number(item.value), 0);
   const extraPercent = extraRows.filter((item) => item.type === "percentage").reduce((sum, item) => sum + Number(item.value), 0);
   const applicableGeneral = generalRows.filter((item) => channel === "direct" ? item.applyToDirectSale : item.applyToMarketplace);
   const generalPercent = applicableGeneral.filter((item) => item.type === "variable").reduce((sum, item) => sum + Number(item.value), 0);
-  const fixedAllocated = 0;
+  const monthlyFixed = generalRows.filter((item) => item.type === "monthly_fixed").reduce((sum, item) => sum + Number(item.value), 0);
+  const fixedAllocated = monthlyFixed / productAllocationBase;
   const percentTotal = extraPercent + generalPercent;
   const costBeforePercent = ingredientCost + extraFixed + fixedAllocated;
   const totalCost = calculateProductTotalCost(ingredientCost, extraFixed, salePrice, percentTotal, fixedAllocated);
