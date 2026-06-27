@@ -63,7 +63,7 @@ export default function Financial() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="font-serif text-3xl font-bold" style={{ color: "#7B2E68" }}>Financeiro</h1>
-          <p className="text-sm text-muted-foreground">Faturamento, ponto de equilíbrio, lucro e fluxo de caixa.</p>
+          <p className="text-sm text-muted-foreground">Faturamento, ponto de equilíbrio, lucro e controle de caixa.</p>
         </div>
         <div className="w-full md:w-56">
           <Label>Acompanhar mês</Label>
@@ -80,7 +80,7 @@ export default function Financial() {
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Ponto de equilíbrio</p>
           <p className="text-2xl font-bold" style={{ color: "#7A8B68" }}>{money(dre?.breakEvenRevenue ?? 0)}</p>
-          <p className="text-xs text-muted-foreground">Margem {((dre?.contributionMarginPercent ?? 0) * 100).toFixed(1)}%</p>
+          <p className="text-xs text-muted-foreground">Custos fixos cadastrados e taxas variáveis</p>
         </div>
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Lucro</p>
@@ -89,12 +89,7 @@ export default function Financial() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Fluxo de caixa</p>
-          <p className="text-2xl font-bold">{money(cash?.balance ?? 0)}</p>
-          <p className="text-xs text-muted-foreground">Entradas menos saídas</p>
-        </div>
+      <section className="grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border bg-white p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Entrada</p>
           <p className="text-xl font-bold text-green-600">{money(cash?.totalInflows ?? 0)}</p>

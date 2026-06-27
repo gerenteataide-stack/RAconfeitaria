@@ -121,8 +121,9 @@ router.get("/financial/dre", async (req, res): Promise<void> => {
   const registeredFixedCosts = generalCosts
     .filter((cost) => cost.type === "monthly_fixed")
     .reduce((acc, cost) => acc + Number(cost.value), 0);
-  const fixedCosts = registeredFixedCosts > 0 ? registeredFixedCosts : expenses;
-  const breakEvenRevenue = contributionMarginPercent > 0 ? fixedCosts / contributionMarginPercent : 0;
+  const fixedCosts = registeredFixedCosts;
+  const breakEvenContributionPercent = Math.max(0, 1 - (variablePercent / 100));
+  const breakEvenRevenue = breakEvenContributionPercent > 0 ? fixedCosts / breakEvenContributionPercent : 0;
   const netProfit = contributionMargin - fixedCosts;
   const cmvPercent = revenue > 0 ? (productCost / revenue) * 100 : 0;
 
@@ -135,7 +136,7 @@ router.get("/financial/dre", async (req, res): Promise<void> => {
     fixedCosts,
     variableSalesCost,
     contributionMargin,
-    contributionMarginPercent,
+    contributionMarginPercent: breakEvenContributionPercent,
     breakEvenRevenue,
     netProfit,
     cmvPercent,
