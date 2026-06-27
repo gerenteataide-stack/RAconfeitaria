@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useLocation } from "wouter";
 import { ShoppingCart, Plus, Minus, Cake, Star, Search } from "lucide-react";
 import { useListProducts } from "@workspace/api-client-react";
@@ -55,14 +55,9 @@ export default function StoreCatalog() {
     <div>
       {/* Hero */}
       <div className="relative overflow-hidden py-16 px-4 text-center" style={{ background: "linear-gradient(135deg, #7B2E68 0%, #9B3E88 50%, #8A9A75 100%)" }}>
-        <div className="absolute inset-0 opacity-10">
-          {["🎂","🍰","🧁","🍫","✨"].map((e, i) => (
-            <span key={i} className="absolute text-4xl select-none" style={{ top: `${10 + i * 18}%`, left: `${5 + i * 20}%`, transform: `rotate(${i * 15 - 30}deg)` }}>{e}</span>
-          ))}
-        </div>
         <div className="relative">
           <Badge className="mb-4 text-xs font-medium border-white/30 text-white bg-white/20 backdrop-blur-sm">
-            ✨ Encomendas artesanais
+            Encomendas artesanais
           </Badge>
           <div className="flex items-center justify-center mb-5">
             <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-xl ring-4 ring-white/30">
@@ -70,7 +65,7 @@ export default function StoreCatalog() {
             </div>
           </div>
           <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-3">
-            Cardapio
+            Cardápio
           </h1>
           <p className="text-white/80 text-lg max-w-md mx-auto">
             Bolos, tortas e doces feitos com amor. Escolha, encomendar e simples!
@@ -121,7 +116,7 @@ export default function StoreCatalog() {
                       <div key={item.productId} className="bg-pink-50 rounded-xl p-3">
                         <div className="flex justify-between items-start mb-2">
                           <p className="font-medium text-sm leading-tight pr-2">{item.productName}</p>
-                          <button onClick={() => removeItem(item.productId)} className="text-muted-foreground hover:text-destructive text-xs shrink-0">✕</button>
+                          <button onClick={() => removeItem(item.productId)} className="text-muted-foreground hover:text-destructive text-xs shrink-0">×</button>
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -179,6 +174,11 @@ export default function StoreCatalog() {
               {cat.name}
             </button>
           ))}
+          {categories.length === 0 && (
+            <span className="rounded-full border border-dashed border-pink-200 bg-white px-4 py-1.5 text-sm text-muted-foreground">
+              Categorias serão exibidas aqui após o cadastro.
+            </span>
+          )}
         </div>
 
         {/* Product grid */}
@@ -268,3 +268,4 @@ export default function StoreCatalog() {
     </div>
   );
 }
+

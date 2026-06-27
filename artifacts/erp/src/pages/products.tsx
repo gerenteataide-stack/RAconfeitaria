@@ -1,12 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+﻿import { useState, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
   useListCategories,
+  useCreateCategory,
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
   getListProductsQueryKey,
+  getListCategoriesQueryKey,
 } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,7 @@ export default function Products() {
   const qc = useQueryClient();
   const { data: products = [], isLoading } = useListProducts();
   const { data: categories = [] } = useListCategories();
+  const createCategory = useCreateCategory();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -62,6 +65,7 @@ export default function Products() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductFormState>(empty);
+  const [categoryName, setCategoryName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +114,20 @@ export default function Products() {
       setDialogOpen(false);
     } catch {
       toast({ title: "Erro ao salvar produto", variant: "destructive" });
+    }
+  }
+
+  async function handleCreateCategory() {
+    const name = categoryName.trim();
+    if (!name) return;
+    try {
+      const category = await createCategory.mutateAsync({ data: { name } });
+      setCategoryName("");
+      setForm((prev) => ({ ...prev, categoryId: String(category.id) }));
+      await qc.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+      toast({ title: "Categoria criada" });
+    } catch {
+      toast({ title: "Erro ao criar categoria", variant: "destructive" });
     }
   }
 
@@ -181,6 +199,33 @@ export default function Products() {
           <Plus className="w-4 h-4" /> Novo produto
         </Button>
       </div>
+
+      <section className="rounded-xl border border-pink-100 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="font-semibold">Categorias da loja</h2>
+            <p className="text-sm text-muted-foreground">Crie categorias para organizar o cardápio e vincular aos produtos.</p>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Ex: Bolos, Tortas, Doces"
+              value={categoryName}
+              onChange={(event) => setCategoryName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleCreateCategory();
+              }}
+            />
+            <Button variant="outline" onClick={handleCreateCategory} disabled={!categoryName.trim() || createCategory.isPending}>
+              <Plus className="mr-2 h-4 w-4" /> Categoria
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.length ? categories.map((category) => (
+            <Badge key={category.id} variant="outline">{category.name}</Badge>
+          )) : <p className="text-sm text-muted-foreground">Nenhuma categoria cadastrada ainda.</p>}
+        </div>
+      </section>
 
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
@@ -353,3 +398,4 @@ export default function Products() {
     </div>
   );
 }
+
