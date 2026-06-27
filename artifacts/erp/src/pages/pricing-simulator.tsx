@@ -148,20 +148,16 @@ export default function PricingSimulatorPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Produto e parâmetros</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Produto</CardTitle></CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-5">
-            <div className="md:col-span-2">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
               <Label>Produto</Label>
               <Select value={productId} onValueChange={selectProduct}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{products.map((p: Product) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Preço venda direta</Label><Input type="number" min="0" step="0.01" value={form.directSalePrice} onChange={(event) => setForm({ ...form, directSalePrice: event.target.value })} /></div>
-            <div><Label>Preço marketplace</Label><Input type="number" min="0" step="0.01" placeholder="Opcional" value={form.marketplacePrice} onChange={(event) => setForm({ ...form, marketplacePrice: event.target.value })} /></div>
-            <div><Label>CMV alvo %</Label><Input type="number" min="1" max="99" step="0.01" value={form.targetCMV} onChange={(event) => setForm({ ...form, targetCMV: event.target.value })} /></div>
-            <div><Label>Margem desejada %</Label><Input type="number" min="1" max="99" step="0.01" value={form.targetMargin} onChange={(event) => setForm({ ...form, targetMargin: event.target.value })} /></div>
           </div>
 
           <div className="grid gap-3 rounded-lg border border-pink-100 bg-pink-50/40 p-4 md:grid-cols-[1fr_180px_160px_auto]">
