@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownCircle, ArrowUpCircle, Box, History, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/auth";
 import { useToast } from "@/hooks/use-toast";
 
 type StockItem = {
@@ -80,6 +81,7 @@ function itemToForm(item: StockItem) {
 
 export default function Stock() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState("itens");
   const [form, setForm] = useState(empty);
@@ -87,6 +89,7 @@ export default function Stock() {
   const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
   const [search, setSearch] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
+  const [movementDate, setMovementDate] = useState(todayInputValue());
   const [movement, setMovement] = useState({ stockItemId: "", type: "entry", quantity: "", reason: "", movementDate: todayInputValue() });
 
   const { data: items = [], isLoading } = useQuery({
@@ -94,8 +97,8 @@ export default function Stock() {
     queryFn: () => apiRequest<StockItem[]>(`/api/stock?search=${encodeURIComponent(search)}${lowOnly ? "&lowStock=true" : ""}`),
   });
   const { data: movements = [] } = useQuery({
-    queryKey: ["stock-movements"],
-    queryFn: () => apiRequest<StockMovement[]>("/api/stock-movements"),
+    queryKey: ["stock-movements", movementDate],
+    queryFn: () => apiRequest<StockMovement[]>(`/api/stock-movements?date=${movementDate}`),
   });
 
   const stats = useMemo(() => {
@@ -138,15 +141,15 @@ export default function Stock() {
       body: JSON.stringify({
         type: movement.type,
         quantity: Number(movement.quantity),
-        reason: movement.reason || (movement.type === "entry" ? "Entrada manual" : "Saída manual"),
+        reason: movement.reason || (movement.type === "entry" ? "Entrada manual" : "SaÃ­da manual"),
         movementDate: movement.movementDate,
       }),
     }),
     onSuccess: () => {
-      setMovement({ stockItemId: "", type: "entry", quantity: "", reason: "", movementDate: todayInputValue() });
+      setMovement({ stockItemId: "", type: "entry", quantity: "", reason: "", movementDate });
       qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock-movements"] });
-      toast({ title: "Movimentação registrada" });
+      toast({ title: "MovimentaÃ§Ã£o registrada" });
     },
   });
 
@@ -178,20 +181,26 @@ export default function Stock() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-serif text-3xl font-bold text-primary">Estoque</h1>
-        <p className="text-sm text-muted-foreground">Cadastro simples de produtos, unidade de medida, saldo e movimentações de entrada e saída.</p>
+        <p className="text-sm text-muted-foreground">Cadastro simples de produtos, unidade de medida, saldo e movimentaÃ§Ãµes de entrada e saÃ­da.</p>
       </div>
+
+      {stats.low > 0 && (user?.role === "owner" || user?.role === "manager") && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          AtenÃ§Ã£o: {stats.low} item(ns) estÃ£o abaixo do estoque mÃ­nimo.
+        </div>
+      )}
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Itens ativos</p><p className="text-2xl font-semibold">{stats.active}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Estoque crítico</p><p className="text-2xl font-semibold text-red-600">{stats.low}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Movimentações</p><p className="text-2xl font-semibold">{stats.movements}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Estoque crÃ­tico</p><p className="text-2xl font-semibold text-red-600">{stats.low}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Movimentações em {new Date(`${movementDate}T00:00:00`).toLocaleDateString("pt-BR")}</p><p className="text-2xl font-semibold">{stats.movements}</p></CardContent></Card>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="grid h-auto w-full grid-cols-3 md:w-[560px]">
           <TabsTrigger value="itens">Itens</TabsTrigger>
           <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
-          <TabsTrigger value="movimentos">Entradas e saídas</TabsTrigger>
+          <TabsTrigger value="movimentos">Entradas e saÃ­das</TabsTrigger>
         </TabsList>
 
         <TabsContent value="itens" className="grid gap-4">
@@ -200,7 +209,7 @@ export default function Stock() {
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder="Buscar item no estoque" value={search} onChange={(event) => setSearch(event.target.value)} />
             </div>
-            <Button variant={lowOnly ? "default" : "outline"} onClick={() => setLowOnly((value) => !value)}>Somente críticos</Button>
+            <Button variant={lowOnly ? "default" : "outline"} onClick={() => setLowOnly((value) => !value)}>Somente crÃ­ticos</Button>
           </div>
 
           <div className="grid gap-3">
@@ -210,17 +219,17 @@ export default function Stock() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold">{item.name}</h2>
-                      {item.isLow && <Badge variant="destructive">Crítico</Badge>}
+                      {item.isLow && <Badge variant="destructive">CrÃ­tico</Badge>}
                       {!item.active && <Badge variant="secondary">Inativo</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Unidade: {item.unit}{item.createdAt ? ` · Cadastro em ${fmtDate(item.createdAt)}` : ""}
+                      Unidade: {item.unit}{item.createdAt ? ` Â· Cadastro em ${fmtDate(item.createdAt)}` : ""}
                     </p>
                   </div>
                   <div><p className="text-xs text-muted-foreground">Saldo</p><p className="font-semibold">{item.quantity} {item.unit}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Mínimo</p><p>{item.minStock} {item.unit}</p></div>
+                  <div><p className="text-xs text-muted-foreground">MÃ­nimo</p><p>{item.minStock} {item.unit}</p></div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Última atualização</p>
+                    <p className="text-xs text-muted-foreground">Ãšltima atualizaÃ§Ã£o</p>
                     {item.updatedAt && <p className="text-xs text-muted-foreground">Atualizado em {fmtDate(item.updatedAt)}</p>}
                   </div>
                   <div className="flex justify-end gap-1">
@@ -241,7 +250,7 @@ export default function Stock() {
               <div className="md:col-span-2"><Label>Produto</Label><Input value={form.name} onChange={(event) => setField("name", event.target.value)} /></div>
               <div><Label>Unidade de medida</Label><Input placeholder="un, kg, g, litro..." value={form.unit} onChange={(event) => setField("unit", event.target.value)} /></div>
               <div><Label>Saldo inicial</Label><Input type="number" min="0" step="0.001" value={form.quantity} onChange={(event) => setField("quantity", event.target.value)} /></div>
-              <div><Label>Estoque mínimo</Label><Input type="number" min="0" step="0.001" value={form.minStock} onChange={(event) => setField("minStock", event.target.value)} /></div>
+              <div><Label>Estoque mÃ­nimo</Label><Input type="number" min="0" step="0.001" value={form.minStock} onChange={(event) => setField("minStock", event.target.value)} /></div>
               <div className="flex items-end gap-2 md:col-span-5">
                 {editing && <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>}
                 <Button disabled={!form.name || save.isPending} onClick={() => save.mutate()} style={{ backgroundColor: "#7B2E68" }}><Plus className="mr-2 h-4 w-4" />Salvar</Button>
@@ -252,7 +261,7 @@ export default function Stock() {
 
         <TabsContent value="movimentos" className="grid gap-4">
           <Card>
-            <CardHeader><CardTitle>Registrar entrada ou saída</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Registrar entrada ou saÃ­da</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-[1.3fr_150px_130px_150px_1fr_auto] md:items-end">
               <div>
                 <Label>Item</Label>
@@ -265,7 +274,7 @@ export default function Stock() {
                 <Label>Movimento</Label>
                 <Select value={movement.type} onValueChange={(type) => setMovement({ ...movement, type })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="entry">Entrada</SelectItem><SelectItem value="exit">Saída</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="entry">Entrada</SelectItem><SelectItem value="exit">SaÃ­da</SelectItem></SelectContent>
                 </Select>
               </div>
               <div><Label>Quantidade</Label><Input type="number" min="0.001" step="0.001" value={movement.quantity} onChange={(event) => setMovement({ ...movement, quantity: event.target.value })} /></div>
@@ -279,17 +288,25 @@ export default function Stock() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Histórico recente</CardTitle></CardHeader>
+            <CardHeader>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <CardTitle className="flex items-center gap-2"><History className="h-4 w-4" /> Movimentações da data</CardTitle>
+                <div className="w-full md:w-48">
+                  <Label>Data</Label>
+                  <Input type="date" value={movementDate} onChange={(event) => setMovementDate(event.target.value)} />
+                </div>
+              </div>
+            </CardHeader>
             <CardContent className="grid gap-2">
               {movements.map((item) => (
                 <div key={item.id} className="grid gap-2 rounded-lg border p-3 md:grid-cols-[1fr_120px_140px_180px] md:items-center">
                   <div><p className="font-medium">{item.stockItemName || `Item #${item.stockItemId}`}</p><p className="text-sm text-muted-foreground">{item.reason || "-"}</p></div>
-                  <Badge variant={item.type === "entry" ? "default" : "destructive"}>{item.type === "entry" ? "Entrada" : "Saída"}</Badge>
+                  <Badge variant={item.type === "entry" ? "default" : "destructive"}>{item.type === "entry" ? "Entrada" : "SaÃ­da"}</Badge>
                   <p className="font-semibold">{item.quantity}</p>
                   <p className="text-sm text-muted-foreground">{fmtDate(item.createdAt)}</p>
                 </div>
               ))}
-              {movements.length === 0 && <div className="rounded-lg border border-dashed bg-white p-8 text-center text-muted-foreground">Nenhuma movimentação registrada.</div>}
+              {movements.length === 0 && <div className="rounded-lg border border-dashed bg-white p-8 text-center text-muted-foreground">Nenhuma movimentaÃ§Ã£o registrada.</div>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -299,7 +316,7 @@ export default function Stock() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir item de estoque?</AlertDialogTitle>
-            <AlertDialogDescription>Essa ação remove o item do estoque. Fichas técnicas que usam esse item podem ficar incompletas.</AlertDialogDescription>
+            <AlertDialogDescription>Essa aÃ§Ã£o remove o item do estoque. Fichas tÃ©cnicas que usam esse item podem ficar incompletas.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -310,3 +327,5 @@ export default function Stock() {
     </div>
   );
 }
+
+

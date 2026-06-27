@@ -11,8 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 type Product = { id: number; name: string; price: number; available: boolean };
-type Customer = { id: number; name: string; phone: string; whatsapp?: string | null; address: string | null };
+type Customer = { id: number; name: string; phone: string; whatsapp?: string | null; address: string | null; neighborhood?: string | null };
 type Line = { productId: string; quantity: string; unitPrice: string; notes: string };
+type DeliveryZone = { id: number; name: string; neighborhood: string | null; fee: number; active: boolean };
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -20,27 +21,37 @@ function money(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function normalize(value: string) {
+  return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 export default function NewOrder() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { data: products = [] } = useQuery({ queryKey: ["products"], queryFn: () => apiRequest<Product[]>("/api/products") });
   const { data: customers = [] } = useQuery({ queryKey: ["customers"], queryFn: () => apiRequest<Customer[]>("/api/customers") });
+  const { data: deliveryZones = [] } = useQuery({ queryKey: ["delivery-zones-active"], queryFn: () => apiRequest<DeliveryZone[]>("/api/delivery-zones?active=true") });
   const [form, setForm] = useState({
     customerId: "",
     customerName: "",
     customerWhatsapp: "",
     deliveryType: "pickup",
     deliveryAddress: "",
+    neighborhood: "",
     deliveryDate: today,
     deliveryTime: "",
     deliveryFee: "0",
     notes: "",
   });
   const [lines, setLines] = useState<Line[]>([{ productId: "", quantity: "1", unitPrice: "", notes: "" }]);
+  const selectedZone = form.deliveryType === "delivery"
+    ? deliveryZones.find((zone) => zone.neighborhood && form.neighborhood && normalize(zone.neighborhood) === normalize(form.neighborhood))
+    : undefined;
+  const deliveryFee = form.deliveryType === "delivery" ? selectedZone?.fee ?? Number(form.deliveryFee || 0) : 0;
 
   const total = useMemo(
-    () => lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unitPrice || 0), 0) + Number(form.deliveryFee || 0),
-    [lines, form.deliveryFee],
+    () => lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unitPrice || 0), 0) + deliveryFee,
+    [lines, deliveryFee],
   );
 
   const create = useMutation({
@@ -50,12 +61,12 @@ export default function NewOrder() {
         customerId: form.customerId ? Number(form.customerId) : undefined,
         customerName: form.customerName || undefined,
         customerPhone: form.customerWhatsapp || undefined,
-        deliveryType: form.deliveryType,
-        deliveryAddress: form.deliveryAddress || undefined,
+        deliveryType: form.deliveryType === "in_person" ? "pickup" : form.deliveryType,
+        deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress}${form.neighborhood ? ` - ${form.neighborhood}` : ""}` : undefined,
         deliveryDate: form.deliveryDate,
         deliveryTime: form.deliveryTime || undefined,
-        deliveryFee: Number(form.deliveryFee || 0),
-        notes: form.notes || undefined,
+        deliveryFee,
+        notes: [form.deliveryType === "in_person" ? "Venda presencial" : "", form.notes].filter(Boolean).join("\n") || undefined,
         items: lines
           .filter((line) => line.productId)
           .map((line) => ({
@@ -80,6 +91,7 @@ export default function NewOrder() {
       customerName: customer?.name ?? "",
       customerWhatsapp: customer?.whatsapp ?? customer?.phone ?? "",
       deliveryAddress: customer?.address ?? "",
+      neighborhood: customer?.neighborhood ?? "",
     });
   }
 
@@ -118,13 +130,15 @@ export default function NewOrder() {
             <Label>Tipo</Label>
             <Select value={form.deliveryType} onValueChange={(deliveryType) => setForm({ ...form, deliveryType })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="pickup">Retirada</SelectItem><SelectItem value="delivery">Entrega</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="pickup">Retirada</SelectItem><SelectItem value="delivery">Entrega</SelectItem><SelectItem value="in_person">Venda presencial</SelectItem></SelectContent>
             </Select>
           </div>
           <div className="md:col-span-2"><Label>Endereço</Label><Input value={form.deliveryAddress} onChange={(event) => setForm({ ...form, deliveryAddress: event.target.value })} /></div>
+          <div><Label>Bairro</Label><Input value={form.neighborhood} onChange={(event) => setForm({ ...form, neighborhood: event.target.value })} /></div>
           <div><Label>Data</Label><Input type="date" min={today} value={form.deliveryDate} onChange={(event) => setForm({ ...form, deliveryDate: event.target.value })} /></div>
           <div><Label>Horário</Label><Input value={form.deliveryTime} onChange={(event) => setForm({ ...form, deliveryTime: event.target.value })} placeholder="14:00" /></div>
-          <div><Label>Frete</Label><Input type="number" value={form.deliveryFee} onChange={(event) => setForm({ ...form, deliveryFee: event.target.value })} /></div>
+          <div><Label>Frete</Label><Input type="number" value={String(deliveryFee)} onChange={(event) => setForm({ ...form, deliveryFee: event.target.value })} /></div>
+          {form.deliveryType === "delivery" && form.neighborhood && selectedZone && <p className="text-xs text-green-700 md:col-span-2">Zona aplicada: {selectedZone.name}</p>}
           <div className="md:col-span-3"><Label>Observações</Label><Textarea rows={2} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div>
         </div>
       </section>

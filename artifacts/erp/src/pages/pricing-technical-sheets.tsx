@@ -91,7 +91,7 @@ export default function PricingTechnicalSheetsPage() {
         </div>
         <div><Label>Modo de preparo</Label><Textarea value={form.preparationMode} onChange={(e) => setForm({ ...form, preparationMode: e.target.value })} /></div>
         <div className="grid gap-3">
-          <div className="flex items-center justify-between"><Label>Ingredientes da ficha</Label><Button variant="outline" onClick={() => setForm({ ...form, items: [...form.items, { ingredientId: "", netQuantity: "0", unit: "g", note: "" }] })}>Adicionar ingrediente</Button></div>
+          <div className="flex items-center justify-between"><Label>Ingredientes da ficha</Label><Button variant="outline" onClick={() => setForm({ ...form, items: [{ ingredientId: "", netQuantity: "0", unit: "g", note: "" }, ...form.items] })}>Adicionar ingrediente</Button></div>
           {form.items.map((item, index) => {
             const ing = ingredients.find((ingredient) => ingredient.id === Number(item.ingredientId));
             const net = Number(item.netQuantity || 0);

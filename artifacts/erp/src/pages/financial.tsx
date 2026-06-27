@@ -23,7 +23,7 @@ type Dre = {
   netProfit: number;
   cmvPercent: number;
 };
-const month = new Date().toISOString().slice(0, 7);
+const currentMonth = new Date().toISOString().slice(0, 7);
 const empty = { type: "receivable" as "receivable" | "payable", description: "", amount: "", dueDate: new Date().toISOString().slice(0, 10), counterpart: "", category: "" };
 
 function money(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
@@ -32,9 +32,10 @@ export default function Financial() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [form, setForm] = useState(empty);
-  const { data: entries = [] } = useQuery({ queryKey: ["financial-entries"], queryFn: () => apiRequest<FinancialEntry[]>("/api/financial/entries") });
-  const { data: cash } = useQuery({ queryKey: ["cashflow"], queryFn: () => apiRequest<CashFlow>(`/api/financial/cashflow?month=${month}`) });
-  const { data: dre } = useQuery({ queryKey: ["dre"], queryFn: () => apiRequest<Dre>(`/api/financial/dre?month=${month}`) });
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const { data: entries = [] } = useQuery({ queryKey: ["financial-entries", selectedMonth], queryFn: () => apiRequest<FinancialEntry[]>(`/api/financial/entries?month=${selectedMonth}`) });
+  const { data: cash } = useQuery({ queryKey: ["cashflow", selectedMonth], queryFn: () => apiRequest<CashFlow>(`/api/financial/cashflow?month=${selectedMonth}`) });
+  const { data: dre } = useQuery({ queryKey: ["dre", selectedMonth], queryFn: () => apiRequest<Dre>(`/api/financial/dre?month=${selectedMonth}`) });
   const create = useMutation({
     mutationFn: () => apiRequest("/api/financial/entries", { method: "POST", body: JSON.stringify({ ...form, amount: Number(form.amount || 0), counterpart: form.counterpart || undefined, category: form.category || undefined }) }),
     onSuccess: () => { setForm(empty); qc.invalidateQueries(); toast({ title: "Lançamento criado" }); },
@@ -43,7 +44,13 @@ export default function Financial() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div><h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Financeiro</h1><p className="text-sm text-muted-foreground">Contas a receber, contas a pagar, fluxo de caixa e DRE.</p></div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div><h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Financeiro</h1><p className="text-sm text-muted-foreground">Contas a receber, contas a pagar, fluxo de caixa e DRE.</p></div>
+        <div className="w-full md:w-56">
+          <Label>Acompanhar mês</Label>
+          <Input type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} />
+        </div>
+      </div>
       <div className="grid gap-3 md:grid-cols-5">
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Entradas</p><p className="text-xl font-bold text-green-600">{money(cash?.totalInflows ?? 0)}</p></div>
         <div className="rounded-lg border bg-white p-4 shadow-sm"><p className="text-sm text-muted-foreground">Saídas</p><p className="text-xl font-bold text-red-600">{money(cash?.totalOutflows ?? 0)}</p></div>

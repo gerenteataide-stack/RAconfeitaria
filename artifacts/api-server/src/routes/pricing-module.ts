@@ -157,6 +157,11 @@ async function recalculateSheet(sheetId: number) {
   await db.update(technicalSheetsTable)
     .set({ totalCost: String(totals.totalCost), unitCost: String(totals.unitCost) })
     .where(eq(technicalSheetsTable.id, sheetId));
+  if (sheet?.productId) {
+    await db.update(productsTable)
+      .set({ cost: String(totals.unitCost) })
+      .where(eq(productsTable.id, sheet.productId));
+  }
 }
 
 async function saveSheetItems(sheetId: number, items: z.infer<typeof TechnicalSheetItemBody>[]) {

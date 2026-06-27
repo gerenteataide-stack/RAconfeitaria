@@ -1,6 +1,5 @@
 import { Link, useLocation } from "wouter";
 import {
-  Bell,
   BookOpen,
   Box,
   Calculator,
@@ -28,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth";
 
@@ -44,10 +44,9 @@ const NAV_ITEMS = [
   { title: "Precificação", url: "/admin/precificacao", icon: Calculator, permission: "pricing" },
   { title: "Financeiro", url: "/financial", icon: DollarSign, permission: "financial" },
   { title: "Marketing", url: "/marketing", icon: Megaphone, permission: "marketing" },
-  { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },
-  { title: "Notificações", url: "/notifications", icon: Bell, permission: "notifications" },
+  { title: "Delivery", url: "/delivery", icon: Truck, permission: "delivery" },  { title: "Usuários", url: "/users", icon: Users, permission: "users" },
   { title: "Configurações", url: "/settings", icon: Settings, permission: "settings" },
-  { title: "Usuários", url: "/users", icon: Users, permission: "users" },
+
 ];
 
 const STORE_LINK = { title: "Ver Loja Pública", url: "/cardapio", icon: Store };
@@ -113,10 +112,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-        <main className="flex flex-1 flex-col overflow-y-auto p-6">
+        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
+          <div className="mb-4 flex items-center gap-3 md:hidden">
+            <SidebarTrigger />
+            <div>
+              <p className="text-sm font-semibold text-primary">Rochelle Ataide</p>
+              <p className="text-xs text-muted-foreground">Menu da gestão</p>
+            </div>
+          </div>
           {children}
         </main>
       </div>
     </SidebarProvider>
   );
 }
+

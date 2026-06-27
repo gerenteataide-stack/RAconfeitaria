@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,11 +60,12 @@ function nextActions(order: Order): Array<{ label: string; status: OrderStatusUp
 export default function Orders() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { data: orders = [], isLoading } = useListOrders();
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const { data: orders = [], isLoading } = useListOrders(selectedDate ? { date: selectedDate } : undefined);
   const updateStatus = useUpdateOrderStatus({
     mutation: {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListOrdersQueryKey() });
+        qc.invalidateQueries({ queryKey: getListOrdersQueryKey(selectedDate ? { date: selectedDate } : undefined) });
         toast({ title: "Pedido atualizado" });
       },
       onError: () => toast({ title: "Erro ao atualizar pedido", variant: "destructive" }),
@@ -87,7 +89,7 @@ export default function Orders() {
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="font-serif text-3xl font-bold text-primary">Pedidos</h1>
-          <p className="mt-1 text-muted-foreground">Gerencie o fluxo de encomendas do seu ateliê.</p>
+          <p className="mt-1 text-muted-foreground">Gerencie o fluxo de encomendas da confeitaria.</p>
         </div>
         <Link href="/orders/new">
           <Button className="rounded-full bg-primary px-6 text-primary-foreground hover:bg-primary/90">
@@ -106,6 +108,12 @@ export default function Orders() {
           />
         </div>
         <div className="mx-2 h-6 w-px bg-border" />
+        <Input
+          type="date"
+          value={selectedDate}
+          onChange={(event) => setSelectedDate(event.target.value)}
+          className="w-full sm:w-44"
+        />
         <Button variant="ghost" size="sm" className="text-muted-foreground">
           <Filter className="mr-2 h-4 w-4" />
           Filtros

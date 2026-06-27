@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Instagram, LayoutDashboard, MapPin, Phone, ShoppingCart } from "lucide-react";
+import { Instagram, MapPin, Phone, ShoppingCart } from "lucide-react";
 import { useCart } from "@/contexts/cart";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/api";
@@ -48,12 +48,6 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-2">
-            <Link href="/dashboard">
-              <button className="hidden items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex">
-                <LayoutDashboard className="h-4 w-4" />
-                <span>Dashboard</span>
-              </button>
-            </Link>
             <Link href="/cardapio/checkout">
               <button
                 className="relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"

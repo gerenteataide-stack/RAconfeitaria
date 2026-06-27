@@ -52,6 +52,13 @@ export default function Marketing() {
     mutationFn: (id: number) => apiRequest(`/api/marketing/coupons/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
   });
+  const toggleCoupon = useMutation({
+    mutationFn: (item: Coupon) => apiRequest<Coupon>(`/api/marketing/coupons/${item.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ active: !item.active }),
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coupons"] }),
+  });
 
   const saveSettings = useMutation({
     mutationFn: () => apiRequest("/api/settings/business", {
@@ -108,7 +115,12 @@ export default function Marketing() {
                   <div className="flex items-center gap-2"><span className="font-mono font-semibold">{item.code}</span><Badge>{item.active ? "Ativo" : "Inativo"}</Badge></div>
                   <p className="text-sm text-muted-foreground">{item.description || "Sem descrição"} · {item.type === "percent" ? `${item.value}%` : item.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => removeCoupon.mutate(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => toggleCoupon.mutate(item)}>
+                    {item.active ? "Desativar" : "Ativar"}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => removeCoupon.mutate(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                </div>
               </div>
             ))}
           </div>

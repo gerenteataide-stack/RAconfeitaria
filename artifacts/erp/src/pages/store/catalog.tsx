@@ -22,7 +22,7 @@ export default function StoreCatalog() {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   const { data: categories = [] } = useListCategories();
-  const { data: allProducts = [] } = useListProducts({ available: true });
+  const { data: allProducts = [] } = useListProducts();
   const { items, addItem, removeItem, updateQuantity, total, count } = useCart();
 
   const products = allProducts.filter((p) => {
@@ -215,6 +215,11 @@ export default function StoreCatalog() {
                         </Badge>
                       </div>
                     )}
+                    {!product.available && (
+                      <div className="absolute inset-x-0 top-6 -rotate-6 bg-red-600 py-2 text-center text-sm font-bold uppercase tracking-wide text-white shadow">
+                        Esgotado
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-4 flex flex-col flex-1">
@@ -248,9 +253,10 @@ export default function StoreCatalog() {
                       className="w-full mt-3 text-sm gap-2"
                       style={{ backgroundColor: "#7B2E68" }}
                       onClick={() => handleAdd(product)}
+                      disabled={!product.available}
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
-                      Adicionar ao carrinho
+                      {product.available ? "Adicionar ao carrinho" : "Esgotado"}
                     </Button>
                   </div>
                 </div>

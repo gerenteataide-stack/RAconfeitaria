@@ -59,10 +59,11 @@ async function ensureFinancialEntryForPaidOrder(order: typeof ordersTable.$infer
   if (existing.length > 0) return;
 
   const today = new Date().toISOString().slice(0, 10);
+  const saleAmount = Math.max(0, Number(order.total) - Number(order.deliveryFee ?? 0));
   await db.insert(financialEntriesTable).values({
     type: "receivable",
     description: `Pedido #${order.id}`,
-    amount: String(order.total),
+    amount: String(saleAmount),
     dueDate: today,
     paidAt: today,
     paid: true,

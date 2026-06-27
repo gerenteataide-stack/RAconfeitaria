@@ -114,7 +114,8 @@ router.get("/stock/:id", async (req, res): Promise<void> => {
   res.json(formatStock(s as Record<string, unknown>));
 });
 
-router.get("/stock-movements", async (_req, res): Promise<void> => {
+router.get("/stock-movements", async (req, res): Promise<void> => {
+  const date = typeof req.query.date === "string" ? req.query.date : "";
   const rows = await db.select({
     id: stockMovementsTable.id,
     stockItemId: stockMovementsTable.stockItemId,
@@ -126,6 +127,7 @@ router.get("/stock-movements", async (_req, res): Promise<void> => {
   })
     .from(stockMovementsTable)
     .leftJoin(stockItemsTable, eq(stockItemsTable.id, stockMovementsTable.stockItemId))
+    .where(date ? sql`date(${stockMovementsTable.createdAt}) = ${date}` : undefined)
     .orderBy(desc(stockMovementsTable.createdAt))
     .limit(80);
 

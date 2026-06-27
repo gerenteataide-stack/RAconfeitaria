@@ -171,6 +171,26 @@ router.post("/marketing/coupons", requireAuth, requirePermission("marketing"), a
   res.status(201).json(coupon(row));
 });
 
+router.get("/coupons/validate", async (req, res): Promise<void> => {
+  const code = typeof req.query.code === "string" ? req.query.code.trim().toUpperCase() : "";
+  const subtotal = Number(req.query.subtotal ?? 0);
+  if (!code) { res.status(400).json({ error: "Informe o cupom" }); return; }
+
+  const [row] = await db.select().from(couponsTable).where(eq(couponsTable.code, code)).limit(1);
+  const today = new Date().toISOString().slice(0, 10);
+  if (!row || !row.active) { res.status(404).json({ error: "Cupom inativo ou não encontrado" }); return; }
+  if (row.startsAt && row.startsAt > today) { res.status(400).json({ error: "Cupom ainda não está válido" }); return; }
+  if (row.endsAt && row.endsAt < today) { res.status(400).json({ error: "Cupom expirado" }); return; }
+  if (subtotal < Number(row.minOrder)) { res.status(400).json({ error: `Pedido mínimo de R$ ${Number(row.minOrder).toFixed(2)}` }); return; }
+
+  const value = Number(row.value);
+  const discount = row.type === "percent" ? subtotal * (value / 100) : value;
+  res.json({
+    ...coupon(row),
+    discount: Math.min(subtotal, Math.max(0, discount)),
+  });
+});
+
 router.patch("/marketing/coupons/:id", requireAuth, requirePermission("marketing"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const parsed = CouponBody.partial().safeParse(req.body);

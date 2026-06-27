@@ -20,8 +20,9 @@ export default function Production() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [form, setForm] = useState({ productId: "", quantity: "1", scheduledDate: today, scheduledTime: "", notes: "" });
+  const [selectedDate, setSelectedDate] = useState(today);
   const { data: products = [] } = useQuery({ queryKey: ["products"], queryFn: () => apiRequest<Product[]>("/api/products") });
-  const { data: orders = [] } = useQuery({ queryKey: ["production"], queryFn: () => apiRequest<ProductionOrder[]>("/api/production") });
+  const { data: orders = [] } = useQuery({ queryKey: ["production", selectedDate], queryFn: () => apiRequest<ProductionOrder[]>(`/api/production?date=${selectedDate}`) });
   const create = useMutation({
     mutationFn: () => apiRequest<ProductionOrder>("/api/production", { method: "POST", body: JSON.stringify({ productId: Number(form.productId), quantity: Number(form.quantity || 1), scheduledDate: form.scheduledDate, scheduledTime: form.scheduledTime || undefined, notes: form.notes || undefined }) }),
     onSuccess: () => { setForm({ productId: "", quantity: "1", scheduledDate: today, scheduledTime: "", notes: "" }); qc.invalidateQueries({ queryKey: ["production"] }); toast({ title: "Produção criada" }); },
@@ -34,6 +35,10 @@ export default function Production() {
   return (
     <div className="flex flex-col gap-6">
       <div><h1 className="text-3xl font-serif font-bold" style={{ color: "#7B2E68" }}>Produção</h1><p className="text-sm text-muted-foreground">Painel diário com produto, quantidade, horário e status.</p></div>
+      <div className="w-full rounded-lg border bg-white p-4 shadow-sm md:w-56">
+        <Label>Filtrar data</Label>
+        <Input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+      </div>
       <section className="rounded-lg border bg-white p-4 shadow-sm">
         <h2 className="mb-4 flex items-center gap-2 font-semibold"><Plus className="h-4 w-4" /> Criar produção</h2>
         <div className="grid gap-3 md:grid-cols-5">

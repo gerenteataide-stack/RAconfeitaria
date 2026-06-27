@@ -35,7 +35,7 @@ export default function Dashboard() {
     <div className="flex flex-col gap-8 pb-10">
       <div>
         <h1 className="text-3xl font-serif font-bold text-primary">Dashboard Executivo</h1>
-        <p className="text-muted-foreground mt-1">Bem-vinda, Rochelle. Aqui está o resumo do seu ateliê hoje.</p>
+        <p className="text-muted-foreground mt-1">Bem-vinda, Rochelle. Aqui está o resumo da sua confeitaria hoje.</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

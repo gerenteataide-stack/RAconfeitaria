@@ -27,6 +27,14 @@ type DeliveryZone = {
   active: boolean;
 };
 
+type AppliedCoupon = {
+  id: number;
+  code: string;
+  type: "percent" | "fixed";
+  value: number;
+  discount: number;
+};
+
 function normalize(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -40,6 +48,8 @@ export default function StoreCheckout() {
   const { items, updateQuantity, removeItem, total, clear } = useCart();
   const { toast } = useToast();
   const createOrder = useCreateOrder();
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const { data: deliveryZones = [] } = useQuery({
     queryKey: ["public-delivery-zones"],
     queryFn: () => apiRequest<DeliveryZone[]>("/api/delivery-zones?active=true"),
@@ -67,7 +77,8 @@ export default function StoreCheckout() {
     })
     : undefined;
   const deliveryFee = form.deliveryType === "delivery" ? selectedZone?.fee ?? 0 : 0;
-  const grandTotal = total + deliveryFee;
+  const discount = Math.min(total, appliedCoupon?.discount ?? 0);
+  const grandTotal = total - discount + deliveryFee;
 
   function handleChange(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -92,6 +103,16 @@ export default function StoreCheckout() {
       return;
     }
     try {
+      const discountedItems = items.map((i) => {
+        const proportionalDiscount = total > 0 ? discount * (i.subtotal / total) : 0;
+        const discountedSubtotal = Math.max(0, i.subtotal - proportionalDiscount);
+        return {
+          productId: i.productId,
+          productName: i.productName,
+          quantity: i.quantity,
+          unitPrice: Number((discountedSubtotal / i.quantity).toFixed(2)),
+        };
+      });
       const order = await createOrder.mutateAsync({
         data: {
           customerName: form.customerName,
@@ -100,19 +121,25 @@ export default function StoreCheckout() {
           deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress} - ${form.neighborhood}${form.cep ? ` - CEP ${form.cep}` : ""}` : undefined,
           deliveryDate: form.deliveryDate,
           deliveryFee: deliveryFee,
-          notes: form.notes || undefined,
-          items: items.map((i) => ({
-            productId: i.productId,
-            productName: i.productName,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-          })),
+          notes: [form.notes, appliedCoupon ? `Cupom aplicado: ${appliedCoupon.code}` : ""].filter(Boolean).join("\n") || undefined,
+          items: discountedItems,
         },
       });
       clear();
       navigate(`/cardapio/sucesso?id=${order.id}`);
     } catch {
       toast({ title: "Erro ao enviar pedido", description: "Tente novamente ou entre em contato.", variant: "destructive" });
+    }
+  }
+
+  async function applyCoupon() {
+    try {
+      const coupon = await apiRequest<AppliedCoupon>(`/api/coupons/validate?code=${encodeURIComponent(couponCode)}&subtotal=${total}`);
+      setAppliedCoupon(coupon);
+      toast({ title: "Cupom aplicado", description: `${coupon.code} descontou ${fmt(coupon.discount)}.` });
+    } catch (error) {
+      setAppliedCoupon(null);
+      toast({ title: "Cupom inválido", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     }
   }
 
@@ -267,6 +294,19 @@ export default function StoreCheckout() {
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span><span>{fmt(total)}</span>
                 </div>
+                <div className="grid gap-2 rounded-lg bg-pink-50 p-3">
+                  <Label htmlFor="coupon">Cupom</Label>
+                  <div className="flex gap-2">
+                    <Input id="coupon" placeholder="PRIMEIRACOMPRA" value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} />
+                    <Button type="button" variant="outline" onClick={applyCoupon} disabled={!couponCode}>Aplicar</Button>
+                  </div>
+                  {appliedCoupon && <p className="text-xs text-green-700">Cupom {appliedCoupon.code} aplicado: -{fmt(discount)}</p>}
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Desconto</span><span>-{fmt(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-muted-foreground">
                   <span>Frete</span>
                   <span>{form.deliveryType === "delivery" ? fmt(deliveryFee) : "Grátis"}</span>
