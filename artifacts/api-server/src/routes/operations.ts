@@ -44,6 +44,10 @@ const NotificationBody = z.object({
 const SettingsBody = z.object({
   cashbackPercent: z.coerce.number().min(0).max(100).optional(),
   loyaltyPointsPerCurrency: z.coerce.number().min(0).optional(),
+  loyaltyEnabled: z.boolean().optional(),
+  loyaltyProgramName: z.string().optional(),
+  loyaltyProgramType: z.enum(["points", "cashback", "points_cashback", "custom"]).optional(),
+  loyaltyRewardDescription: z.string().optional(),
   whatsappNumber: z.string().optional(),
   pixKey: z.string().optional(),
   privacyPolicyUrl: z.string().optional(),
@@ -239,6 +243,10 @@ async function readBusinessSettings() {
   return {
     cashbackPercent: Number(data.cashbackPercent ?? 0),
     loyaltyPointsPerCurrency: Number(data.loyaltyPointsPerCurrency ?? 1),
+    loyaltyEnabled: data.loyaltyEnabled === undefined ? true : data.loyaltyEnabled === "true",
+    loyaltyProgramName: data.loyaltyProgramName ?? "Cartão fidelidade",
+    loyaltyProgramType: data.loyaltyProgramType ?? "points_cashback",
+    loyaltyRewardDescription: data.loyaltyRewardDescription ?? "Acumule pontos e cashback em suas compras.",
     whatsappNumber: data.whatsappNumber ?? "",
     pixKey: data.pixKey ?? "",
     privacyPolicyUrl: data.privacyPolicyUrl ?? "",

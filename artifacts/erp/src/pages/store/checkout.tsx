@@ -38,6 +38,10 @@ type AppliedCoupon = {
 type PublicSettings = {
   cashbackPercent: number;
   loyaltyPointsPerCurrency: number;
+  loyaltyEnabled: boolean;
+  loyaltyProgramName: string;
+  loyaltyProgramType: "points" | "cashback" | "points_cashback" | "custom";
+  loyaltyRewardDescription: string;
 };
 
 type StoreCustomer = {
@@ -102,7 +106,11 @@ export default function StoreCheckout() {
   const discount = Math.min(total, appliedCoupon?.discount ?? 0);
   const grandTotal = total - discount + deliveryFee;
   const cashbackPercent = Number(publicSettings?.cashbackPercent ?? 0);
-  const expectedCashback = cashbackPercent > 0 ? (total - discount) * (cashbackPercent / 100) : 0;
+  const loyaltyEnabled = publicSettings?.loyaltyEnabled ?? true;
+  const loyaltyProgramType = publicSettings?.loyaltyProgramType ?? "points_cashback";
+  const showLoyaltyPoints = loyaltyEnabled && (loyaltyProgramType === "points" || loyaltyProgramType === "points_cashback" || loyaltyProgramType === "custom");
+  const showLoyaltyCashback = loyaltyEnabled && (loyaltyProgramType === "cashback" || loyaltyProgramType === "points_cashback" || loyaltyProgramType === "custom");
+  const expectedCashback = showLoyaltyCashback && cashbackPercent > 0 ? (total - discount) * (cashbackPercent / 100) : 0;
 
   useEffect(() => {
     const saved = localStorage.getItem("ra-store-customer");
@@ -258,11 +266,13 @@ export default function StoreCheckout() {
                     onBlur={() => lookupCustomer()}
                     className="mt-1" required />
                 </div>
-                {knownCustomer && (
+                {knownCustomer && loyaltyEnabled && (
                   <div className="rounded-xl border border-pink-100 bg-pink-50 p-3 text-sm">
                     <p className="font-medium" style={{ color: "#7B2E68" }}>Olá, {knownCustomer.name}</p>
-                    <p className="text-muted-foreground">{knownCustomer.loyaltyPoints} ponto(s) acumulado(s) no cartão fidelidade.</p>
-                    {cashbackPercent > 0 && <p className="text-green-700">Cashback ativo: você pode ganhar {fmt(expectedCashback)} nesta compra.</p>}
+                    <p className="font-medium">{publicSettings?.loyaltyProgramName ?? "Cartão fidelidade"}</p>
+                    {publicSettings?.loyaltyRewardDescription && <p className="text-muted-foreground">{publicSettings.loyaltyRewardDescription}</p>}
+                    {showLoyaltyPoints && <p className="text-muted-foreground">{knownCustomer.loyaltyPoints} ponto(s) acumulado(s).</p>}
+                    {showLoyaltyCashback && cashbackPercent > 0 && <p className="text-green-700">Cashback ativo: você pode ganhar {fmt(expectedCashback)} nesta compra.</p>}
                   </div>
                 )}
               </div>

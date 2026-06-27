@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
   Box,
@@ -30,6 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth";
+import { apiRequest } from "@/lib/api";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
@@ -54,6 +56,14 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
   const { user, can, logout } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
   const visibleItems = NAV_ITEMS.filter((item) => can(item.permission));
+  const canViewOrders = can("orders");
+  const { data: newOrders = [] } = useQuery({
+    queryKey: ["orders-menu-new"],
+    queryFn: () => apiRequest<Array<{ id: number }>>("/api/orders?status=new"),
+    enabled: canViewOrders,
+    refetchInterval: 15000,
+  });
+  const newOrderCount = newOrders.length;
 
   function closeMobileMenu() {
     if (isMobile) setOpenMobile(false);
@@ -80,8 +90,18 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={location.startsWith(item.url)}>
                       <Link href={item.url} className="flex items-center gap-3" onClick={closeMobileMenu}>
-                        <item.icon className="h-4 w-4" />
+                        <span className="relative">
+                          <item.icon className="h-4 w-4" />
+                          {item.url === "/orders" && newOrderCount > 0 && (
+                            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-white bg-red-500" />
+                          )}
+                        </span>
                         <span>{item.title}</span>
+                        {item.url === "/orders" && newOrderCount > 0 && (
+                          <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                            {newOrderCount > 99 ? "99+" : newOrderCount}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
