@@ -201,7 +201,6 @@ export default function PricingSimulatorPage() {
                   <div><p className="text-xs text-muted-foreground">Custo do produto</p><p className="font-semibold">{fmtCurrency(row!.ingredientCost)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Lucro bruto</p><p className={row!.grossProfit >= 0 ? "font-semibold text-green-700" : "font-semibold text-red-600"}>{fmtCurrency(row!.grossProfit)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Custo vendeu pagou</p><p className="font-semibold">{fmtCurrency(soldPaidCost(row!))}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Custos fixos rateados</p><p className="font-semibold">{fmtCurrency(row!.fixedCostAllocated)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Custo total</p><p className="font-semibold">{fmtCurrency(row!.totalCost)}</p></div>
                   <div><p className="text-xs text-muted-foreground">CMV</p><p className={`font-semibold ${cmvClass(row!.cmvPercent)}`}>{fmtPercent(row!.cmvPercent)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Margem contribuição</p><p className={`font-semibold ${marginClass(row!.contributionMarginPercent, targetMargin)}`}>{fmtPercent(row!.contributionMarginPercent)}</p></div>
