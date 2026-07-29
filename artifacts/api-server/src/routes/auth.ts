@@ -4,8 +4,10 @@ import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, permissionsTable, rolePermissionsTable, rolesTable, usersTable } from "@workspace/db";
 import { getAuthUser, requireAuth, ROLE_LABELS, ROLE_PERMISSIONS, signAuthToken } from "../lib/auth";
+import { createRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
+const loginRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
 const LoginBody = z.object({
   email: z.string().trim().email("Email inválido").transform((value) => value.toLowerCase()),
@@ -91,7 +93,7 @@ router.get("/auth/setup", async (_req, res): Promise<void> => {
   res.json({ hasUsers: users.length > 0 });
 });
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginRateLimit, async (req, res): Promise<void> => {
   await ensureAuthDefaults();
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }

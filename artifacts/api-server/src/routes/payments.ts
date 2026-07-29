@@ -9,8 +9,10 @@ import {
   paymentsTable,
 } from "@workspace/db";
 import { requireAuth, requirePermission } from "../lib/auth";
+import { createRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
+const paymentCheckoutRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 
 const CheckoutBody = z.object({
   orderId: z.coerce.number().int().positive(),
@@ -102,7 +104,7 @@ router.get("/payments/order/:orderId", requireAuth, requirePermission("financial
   res.json(rows.map(formatPayment));
 });
 
-router.post("/payments/picpay/checkout", async (req, res): Promise<void> => {
+router.post("/payments/picpay/checkout", paymentCheckoutRateLimit, async (req, res): Promise<void> => {
   const parsed = PicPayCheckoutBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -207,7 +209,7 @@ router.post("/payments/picpay/webhook", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-router.post("/payments/checkout", async (req, res): Promise<void> => {
+router.post("/payments/checkout", paymentCheckoutRateLimit, async (req, res): Promise<void> => {
   const parsed = CheckoutBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 

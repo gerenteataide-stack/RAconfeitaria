@@ -5,8 +5,21 @@ import os from "os";
 import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { securityHeaders } from "./lib/security";
 
 const app: Express = express();
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS ?? "https://raconfeitaria.vercel.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+if (process.env.NODE_ENV !== "production") {
+  allowedOrigins.add("http://localhost:5173");
+  allowedOrigins.add("http://127.0.0.1:5173");
+  allowedOrigins.add("http://localhost:3000");
+  allowedOrigins.add("http://127.0.0.1:3000");
+}
 
 app.use(
   pinoHttp({
@@ -27,7 +40,17 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.disable("x-powered-by");
+app.use(securityHeaders);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin) || origin.endsWith(".vercel.app")) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Origin not allowed"));
+  },
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

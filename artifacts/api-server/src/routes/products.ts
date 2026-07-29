@@ -14,6 +14,7 @@ import {
   UpdateProductParams,
   DeleteProductParams,
 } from "@workspace/api-zod";
+import { requireAuth, requirePermission } from "../lib/auth";
 
 const uploadsDir = path.join(
   process.env.VERCEL ? os.tmpdir() : process.cwd(),
@@ -142,7 +143,7 @@ router.get("/products", async (req, res): Promise<void> => {
   res.json(rows.map((r) => formatProduct(r as Record<string, unknown>, r.categoryName)));
 });
 
-router.post("/products", async (req, res): Promise<void> => {
+router.post("/products", requireAuth, requirePermission("products"), async (req, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [p] = await db.insert(productsTable).values({
@@ -180,7 +181,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   res.json(formatProduct(rows[0] as Record<string, unknown>, rows[0].categoryName));
 });
 
-router.patch("/products/:id", async (req, res): Promise<void> => {
+router.patch("/products/:id", requireAuth, requirePermission("products"), async (req, res): Promise<void> => {
   const params = UpdateProductParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateProductBody.safeParse(req.body);
@@ -195,7 +196,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   res.json(formatProduct(p as Record<string, unknown>));
 });
 
-router.delete("/products/:id", async (req, res): Promise<void> => {
+router.delete("/products/:id", requireAuth, requirePermission("products"), async (req, res): Promise<void> => {
   const params = DeleteProductParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [p] = await db.delete(productsTable).where(eq(productsTable.id, params.data.id)).returning();
@@ -203,7 +204,7 @@ router.delete("/products/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.post("/products/:id/image", upload.single("image"), async (req, res): Promise<void> => {
+router.post("/products/:id/image", requireAuth, requirePermission("products"), upload.single("image"), async (req, res): Promise<void> => {
   const id = Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
   if (!req.file) { res.status(400).json({ error: "No image file provided" }); return; }
   const [current] = await db.select().from(productsTable).where(eq(productsTable.id, id));

@@ -11,8 +11,11 @@ import {
   UpdateOrderStatusParams,
   UpdateOrderStatusBody,
 } from "@workspace/api-zod";
+import { requireAuth, requirePermission } from "../lib/auth";
+import { createRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
+const createOrderRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 
 async function getOrderWithItems(orderId: number) {
   const [o] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
@@ -76,7 +79,7 @@ async function ensureFinancialEntryForPaidOrder(order: typeof ordersTable.$infer
   });
 }
 
-router.get("/orders", async (req, res): Promise<void> => {
+router.get("/orders", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
   const qp = ListOrdersQueryParams.safeParse(req.query);
   if (!qp.success) { res.status(400).json({ error: qp.error.message }); return; }
 
@@ -106,7 +109,7 @@ router.get("/orders", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.post("/orders", async (req, res): Promise<void> => {
+router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
@@ -155,7 +158,7 @@ router.post("/orders", async (req, res): Promise<void> => {
   res.status(201).json(result);
 });
 
-router.get("/orders/:id", async (req, res): Promise<void> => {
+router.get("/orders/:id", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
   const params = GetOrderParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const result = await getOrderWithItems(params.data.id);
@@ -163,7 +166,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.patch("/orders/:id", async (req, res): Promise<void> => {
+router.patch("/orders/:id", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
   const params = UpdateOrderParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateOrderBody.safeParse(req.body);
@@ -178,7 +181,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   res.json(result);
 });
 
-router.delete("/orders/:id", async (req, res): Promise<void> => {
+router.delete("/orders/:id", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
   const params = DeleteOrderParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   await db.delete(orderItemsTable).where(eq(orderItemsTable.orderId, params.data.id));
@@ -187,7 +190,7 @@ router.delete("/orders/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.patch("/orders/:id/status", async (req, res): Promise<void> => {
+router.patch("/orders/:id/status", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
   const params = UpdateOrderStatusParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateOrderStatusBody.safeParse(req.body);

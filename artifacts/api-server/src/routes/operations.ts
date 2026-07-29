@@ -270,7 +270,7 @@ router.get("/settings/business", requireAuth, requirePermission("settings"), asy
   res.json(await readBusinessSettings());
 });
 
-router.get("/settings/recipe-costs", requireAuth, async (_req, res): Promise<void> => {
+router.get("/settings/recipe-costs", requireAuth, requirePermission("pricing"), async (_req, res): Promise<void> => {
   const settings = await readBusinessSettings();
   res.json({
     recipeFixedCost: settings.recipeFixedCost,

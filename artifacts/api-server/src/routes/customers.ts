@@ -10,8 +10,11 @@ import {
   DeleteCustomerParams,
   GetCustomerHistoryParams,
 } from "@workspace/api-zod";
+import { requireAuth, requirePermission } from "../lib/auth";
+import { createRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
+const customerLookupRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
 
 function formatCustomer(c: Record<string, unknown>) {
   return {
@@ -33,7 +36,7 @@ function formatCustomer(c: Record<string, unknown>) {
   };
 }
 
-router.get("/customers", async (req, res): Promise<void> => {
+router.get("/customers", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const qp = ListCustomersQueryParams.safeParse(req.query);
   if (!qp.success) { res.status(400).json({ error: qp.error.message }); return; }
 
@@ -44,14 +47,14 @@ router.get("/customers", async (req, res): Promise<void> => {
   res.json(rows.map((c) => formatCustomer(c as Record<string, unknown>)));
 });
 
-router.post("/customers", async (req, res): Promise<void> => {
+router.post("/customers", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const parsed = CreateCustomerBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const [c] = await db.insert(customersTable).values(parsed.data).returning();
   res.status(201).json(formatCustomer(c as Record<string, unknown>));
 });
 
-router.get("/customers/lookup", async (req, res): Promise<void> => {
+router.get("/customers/lookup", customerLookupRateLimit, async (req, res): Promise<void> => {
   const phone = typeof req.query.whatsapp === "string" ? req.query.whatsapp.replace(/\D/g, "") : "";
   if (phone.length < 8) { res.status(400).json({ error: "Informe um WhatsApp válido" }); return; }
 
@@ -63,7 +66,7 @@ router.get("/customers/lookup", async (req, res): Promise<void> => {
   res.json(formatCustomer(rows[0] as Record<string, unknown>));
 });
 
-router.get("/customers/:id", async (req, res): Promise<void> => {
+router.get("/customers/:id", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const params = GetCustomerParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [c] = await db.select().from(customersTable).where(eq(customersTable.id, params.data.id));
@@ -71,7 +74,7 @@ router.get("/customers/:id", async (req, res): Promise<void> => {
   res.json(formatCustomer(c as Record<string, unknown>));
 });
 
-router.patch("/customers/:id", async (req, res): Promise<void> => {
+router.patch("/customers/:id", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const params = UpdateCustomerParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateCustomerBody.safeParse(req.body);
@@ -81,7 +84,7 @@ router.patch("/customers/:id", async (req, res): Promise<void> => {
   res.json(formatCustomer(c as Record<string, unknown>));
 });
 
-router.delete("/customers/:id", async (req, res): Promise<void> => {
+router.delete("/customers/:id", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const params = DeleteCustomerParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [c] = await db.delete(customersTable).where(eq(customersTable.id, params.data.id)).returning();
@@ -89,7 +92,7 @@ router.delete("/customers/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/customers/:id/history", async (req, res): Promise<void> => {
+router.get("/customers/:id/history", requireAuth, requirePermission("customers"), async (req, res): Promise<void> => {
   const params = GetCustomerHistoryParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 

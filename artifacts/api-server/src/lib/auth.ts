@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { db, rolePermissionsTable, usersTable } from "@workspace/db";
@@ -39,7 +40,12 @@ declare global {
 }
 
 function jwtSecret() {
-  return process.env.JWT_SECRET || "ra-confeitaria-dev-secret-change-me";
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.DATABASE_URL) throw new Error("JWT_SECRET or DATABASE_URL must be set in production");
+    return crypto.createHash("sha256").update(process.env.DATABASE_URL).digest("hex");
+  }
+  return "ra-confeitaria-dev-secret-change-me";
 }
 
 export function signAuthToken(user: AuthUser) {

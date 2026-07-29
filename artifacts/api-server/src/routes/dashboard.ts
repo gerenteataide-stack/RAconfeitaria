@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { db, ordersTable, orderItemsTable, productsTable, customersTable, stockItemsTable } from "@workspace/db";
 import { sql, eq, gte, and } from "drizzle-orm";
+import { requireAuth, requirePermission } from "../lib/auth";
 
 const router: IRouter = Router();
 
-router.get("/dashboard/stats", async (req, res): Promise<void> => {
+router.get("/dashboard/stats", requireAuth, requirePermission("dashboard"), async (req, res): Promise<void> => {
   const today = new Date().toISOString().split("T")[0];
   const firstOfMonth = today.slice(0, 7) + "-01";
 
@@ -53,7 +54,7 @@ router.get("/dashboard/stats", async (req, res): Promise<void> => {
   });
 });
 
-router.get("/dashboard/sales-chart", async (req, res): Promise<void> => {
+router.get("/dashboard/sales-chart", requireAuth, requirePermission("dashboard"), async (req, res): Promise<void> => {
   const rows = await db.execute(sql`
     SELECT 
       date(created_at) as date,
@@ -75,7 +76,7 @@ router.get("/dashboard/sales-chart", async (req, res): Promise<void> => {
   res.json(points);
 });
 
-router.get("/dashboard/top-products", async (req, res): Promise<void> => {
+router.get("/dashboard/top-products", requireAuth, requirePermission("dashboard"), async (req, res): Promise<void> => {
   const rows = await db.execute(sql`
     SELECT 
       p.id,
