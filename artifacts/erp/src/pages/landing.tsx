@@ -62,20 +62,13 @@ export default function LandingPage() {
           className="pointer-events-none absolute -right-28 bottom-0 -z-10 h-[72%] max-w-none object-contain opacity-40 sm:right-0 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
         />
 
-        <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-16">
+        <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center px-5 py-5 sm:px-8 lg:px-16">
           <a href="/" className="flex min-w-0 items-center gap-3" aria-label={`${businessName}, página inicial`}>
             <img src="/logo.png" alt="" className="h-11 w-11 object-contain" />
             <span className="min-w-0">
               <span className="block truncate font-serif text-sm font-bold text-[#7B2E68] sm:text-base">{businessName}</span>
               <span className="block text-xs text-[#66735B]">{subtitle}</span>
             </span>
-          </a>
-          <a
-            href="/cardapio"
-            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#7B2E68] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#642455]"
-          >
-            <span>Fazer pedido</span>
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </a>
         </header>
 
@@ -95,7 +88,7 @@ export default function LandingPage() {
                 href="/cardapio"
                 className="inline-flex min-h-12 items-center gap-2 rounded-md bg-[#7B2E68] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#642455]"
               >
-                Ver cardápio e pedir
+                Fazer pedido
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
