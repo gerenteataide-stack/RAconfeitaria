@@ -198,6 +198,7 @@ export interface Order {
   customerName?: string | null;
   /** @nullable */
   customerPhone?: string | null;
+  paymentMethod?: OrderPaymentMethod;
   status: OrderStatus;
   total: number;
   deliveryType: OrderDeliveryType;
@@ -244,6 +245,7 @@ export interface OrderInput {
   customerId?: number;
   customerName?: string;
   customerPhone?: string;
+  paymentMethod?: OrderInputPaymentMethod;
   deliveryType: OrderInputDeliveryType;
   deliveryAddress?: string;
   deliveryDate: string;
@@ -265,6 +267,7 @@ export interface OrderUpdate {
   customerId?: number;
   customerName?: string;
   customerPhone?: string;
+  paymentMethod?: OrderUpdatePaymentMethod;
   deliveryType?: OrderUpdateDeliveryType;
   deliveryAddress?: string;
   deliveryDate?: string;
@@ -272,6 +275,30 @@ export interface OrderUpdate {
   deliveryFee?: number;
   notes?: string;
 }
+
+export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPaymentMethod] | null;
+export const OrderPaymentMethod = {
+  pix: "pix",
+  cash: "cash",
+  debit_card: "debit_card",
+  credit_card: "credit_card",
+} as const;
+
+export type OrderInputPaymentMethod = typeof OrderInputPaymentMethod[keyof typeof OrderInputPaymentMethod];
+export const OrderInputPaymentMethod = {
+  pix: "pix",
+  cash: "cash",
+  debit_card: "debit_card",
+  credit_card: "credit_card",
+} as const;
+
+export type OrderUpdatePaymentMethod = typeof OrderUpdatePaymentMethod[keyof typeof OrderUpdatePaymentMethod];
+export const OrderUpdatePaymentMethod = {
+  pix: "pix",
+  cash: "cash",
+  debit_card: "debit_card",
+  credit_card: "credit_card",
+} as const;
 
 export type OrderStatusUpdateStatus = typeof OrderStatusUpdateStatus[keyof typeof OrderStatusUpdateStatus];
 

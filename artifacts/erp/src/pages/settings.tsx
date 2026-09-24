@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { formatBrazilianPhone } from "@/lib/br-formats";
 
 type BusinessSettings = {
   cashbackPercent: number;
@@ -48,7 +49,7 @@ export default function Settings() {
       businessName: data.businessName ?? "",
       businessSubtitle: data.businessSubtitle ?? "",
       businessDescription: data.businessDescription ?? "",
-      whatsappNumber: data.whatsappNumber ?? "",
+      whatsappNumber: formatBrazilianPhone(data.whatsappNumber ?? ""),
       pixKey: data.pixKey ?? "",
       instagram: data.instagram ?? "",
       location: data.location ?? "",
@@ -110,7 +111,7 @@ export default function Settings() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label>WhatsApp oficial</Label>
-              <Input placeholder="(11) 99999-9999" value={form.whatsappNumber} onChange={(event) => setField("whatsappNumber", event.target.value)} />
+              <Input inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={form.whatsappNumber} onChange={(event) => setField("whatsappNumber", formatBrazilianPhone(event.target.value))} />
             </div>
             <div>
               <Label>Chave Pix</Label>

@@ -20,6 +20,8 @@ export default function StoreSuccess() {
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get("id");
   const payment = params.get("payment");
+  const method = params.get("method");
+  const paymentMethod = method === "pix" || method === "cash" || method === "debit_card" || method === "credit_card" ? method : null;
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
@@ -29,6 +31,7 @@ export default function StoreSuccess() {
   const whatsapp = settings?.whatsappNumber?.trim() ?? "";
   const whatsappDigits = onlyDigits(whatsapp);
   const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}` : undefined;
+  const paymentMethodLabel = paymentMethod === "pix" ? "Pix" : paymentMethod === "cash" ? "Dinheiro" : paymentMethod === "debit_card" ? "Cartão de débito" : paymentMethod === "credit_card" ? "Cartão de crédito" : "a combinar";
 
   async function copyPix() {
     if (!pixKey) return;
@@ -53,7 +56,7 @@ export default function StoreSuccess() {
         </p>
       )}
 
-      {pixKey && (
+      {paymentMethod === "pix" && pixKey && (
         <div className="mb-6 rounded-2xl border border-pink-100 bg-white p-5 text-left shadow-sm">
           <h2 className="mb-2 font-semibold text-foreground">Pagamento via Pix</h2>
           <p className="mb-3 text-sm text-muted-foreground">
@@ -68,9 +71,19 @@ export default function StoreSuccess() {
         </div>
       )}
 
-      {!pixKey && (
+      {paymentMethod === "pix" && !pixKey && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          A chave Pix ainda não foi cadastrada. Vamos enviar as instruções de pagamento pelo WhatsApp.
+          A chave Pix ainda não foi cadastrada. Fale conosco pelo WhatsApp para combinar o pagamento.
+        </div>
+      )}
+      {paymentMethod && paymentMethod !== "pix" && (
+        <div className="mb-6 rounded-lg border border-pink-100 bg-white p-4 text-sm text-muted-foreground">
+          Forma escolhida: <strong className="text-foreground">{paymentMethodLabel}</strong>. Vamos confirmar os detalhes do pagamento pelo WhatsApp.
+        </div>
+      )}
+      {!paymentMethod && (
+        <div className="mb-6 rounded-lg border border-pink-100 bg-white p-4 text-sm text-muted-foreground">
+          A forma de pagamento será combinada com a confeitaria pelo WhatsApp.
         </div>
       )}
 
@@ -95,7 +108,7 @@ export default function StoreSuccess() {
         <ol className="space-y-3 text-sm text-muted-foreground">
           <li className="flex gap-3">
             <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: "#7B2E68" }}>1</span>
-            Faça o pagamento pelo Pix e envie o comprovante pelo WhatsApp.
+            {paymentMethod === "pix" ? "Faça o pagamento pelo Pix e envie o comprovante pelo WhatsApp." : `A forma escolhida foi ${paymentMethodLabel}. Aguarde a confirmação dos detalhes pelo WhatsApp.`}
           </li>
           <li className="flex gap-3">
             <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: "#7B2E68" }}>2</span>
@@ -114,7 +127,7 @@ export default function StoreSuccess() {
         {whatsappUrl && (
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
             <Button className="w-full gap-2" style={{ backgroundColor: "#25D366", color: "white" }}>
-              <MessageCircle className="h-4 w-4" /> Enviar comprovante
+              <MessageCircle className="h-4 w-4" /> {paymentMethod === "pix" ? "Enviar comprovante" : "Falar pelo WhatsApp"}
             </Button>
           </a>
         )}

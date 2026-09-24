@@ -11,6 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
+import { formatBrazilianCep, formatBrazilianPhone, onlyDigits } from "@/lib/br-formats";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type PaymentMethod = "pix" | "cash" | "debit_card" | "credit_card";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -60,16 +64,13 @@ function normalize(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function onlyDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
 export default function StoreCheckout() {
   const [, navigate] = useLocation();
   const { items, updateQuantity, removeItem, total, clear } = useCart();
   const { toast } = useToast();
   const createOrder = useCreateOrder();
   const [couponCode, setCouponCode] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [knownCustomer, setKnownCustomer] = useState<StoreCustomer | null>(null);
   const { data: publicSettings } = useQuery({
@@ -121,7 +122,7 @@ export default function StoreCheckout() {
       setForm((prev) => ({
         ...prev,
         customerName: prev.customerName || customer.name,
-        customerPhone: prev.customerPhone || (customer.whatsapp || customer.phone),
+        customerPhone: prev.customerPhone || formatBrazilianPhone(customer.whatsapp || customer.phone),
         deliveryAddress: prev.deliveryAddress || customer.address || "",
         neighborhood: prev.neighborhood || customer.neighborhood || "",
       }));
@@ -186,6 +187,7 @@ export default function StoreCheckout() {
         data: {
           customerName: form.customerName,
           customerPhone: form.customerPhone,
+          paymentMethod,
           deliveryType: form.deliveryType,
           deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress} - ${form.neighborhood}${form.cep ? ` - CEP ${form.cep}` : ""}` : undefined,
           deliveryDate: form.deliveryDate,
@@ -206,7 +208,7 @@ export default function StoreCheckout() {
         totalOrders: knownCustomer?.totalOrders ?? 0,
       }));
       clear();
-      navigate(`/cardapio/sucesso?id=${order.id}`);
+      navigate(`/cardapio/sucesso?id=${order.id}&method=${paymentMethod}`);
     } catch {
       toast({ title: "Erro ao enviar pedido", description: "Tente novamente ou entre em contato.", variant: "destructive" });
     }
@@ -261,8 +263,8 @@ export default function StoreCheckout() {
                 </div>
                 <div>
                   <Label htmlFor="phone">WhatsApp *</Label>
-                  <Input id="phone" placeholder="(11) 99999-9999" value={form.customerPhone}
-                    onChange={(e) => handleChange("customerPhone", e.target.value)}
+                  <Input id="phone" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={form.customerPhone}
+                    onChange={(e) => handleChange("customerPhone", formatBrazilianPhone(e.target.value))}
                     onBlur={() => lookupCustomer()}
                     className="mt-1" required />
                 </div>
@@ -311,8 +313,8 @@ export default function StoreCheckout() {
                     </div>
                     <div>
                       <Label htmlFor="cep">CEP</Label>
-                      <Input id="cep" placeholder="00000-000" value={form.cep}
-                        onChange={(e) => handleChange("cep", e.target.value)} className="mt-1" />
+                    <Input id="cep" inputMode="numeric" placeholder="00000-000" value={form.cep}
+                      onChange={(e) => handleChange("cep", formatBrazilianCep(e.target.value))} className="mt-1" />
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -334,6 +336,20 @@ export default function StoreCheckout() {
                   onChange={(e) => handleChange("deliveryDate", e.target.value)} className="mt-1" required />
                 <p className="text-xs text-muted-foreground mt-1">Escolha a data desejada. Pedidos para o mesmo dia serão confirmados pelo WhatsApp.</p>
               </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
+              <h2 className="font-semibold mb-4">Forma de pagamento</h2>
+              <Select value={paymentMethod} onValueChange={(value: PaymentMethod) => setPaymentMethod(value)}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">Pix</SelectItem>
+                  <SelectItem value="cash">Dinheiro</SelectItem>
+                  <SelectItem value="debit_card">Cartão de débito</SelectItem>
+                  <SelectItem value="credit_card">Cartão de crédito</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-2 text-xs text-muted-foreground">O pagamento é combinado manualmente com a confeitaria. Nenhuma cobrança será feita agora.</p>
             </div>
 
             {/* Notes */}
@@ -416,7 +432,7 @@ export default function StoreCheckout() {
                 {createOrder.isPending ? "Enviando..." : "Confirmar pedido →"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                O pagamento será combinado pelo WhatsApp. Você pode pagar pelo PicPay.
+                Pagamento escolhido: {paymentMethod === "pix" ? "Pix" : paymentMethod === "cash" ? "Dinheiro" : paymentMethod === "debit_card" ? "Cartão de débito" : "Cartão de crédito"}.
               </p>
             </div>
           </div>

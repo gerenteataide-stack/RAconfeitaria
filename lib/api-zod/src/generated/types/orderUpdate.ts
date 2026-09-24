@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OrderUpdateDeliveryType } from './orderUpdateDeliveryType';
+import type { OrderUpdatePaymentMethod } from './orderUpdatePaymentMethod';
 
 export interface OrderUpdate {
   customerId?: number;
   customerName?: string;
   customerPhone?: string;
+  paymentMethod?: OrderUpdatePaymentMethod;
   deliveryType?: OrderUpdateDeliveryType;
   deliveryAddress?: string;
   deliveryDate?: string;

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { formatBrazilianCep } from "@/lib/br-formats";
 
 type DeliveryZone = {
   id: number;
@@ -133,8 +134,8 @@ export default function Delivery() {
             <div><Label>Nome</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div><Label>Bairro</Label><Input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>CEP inicial</Label><Input value={form.cepStart} onChange={(e) => setForm({ ...form, cepStart: e.target.value })} /></div>
-              <div><Label>CEP final</Label><Input value={form.cepEnd} onChange={(e) => setForm({ ...form, cepEnd: e.target.value })} /></div>
+              <div><Label>CEP inicial</Label><Input inputMode="numeric" placeholder="00000-000" value={formatBrazilianCep(form.cepStart)} onChange={(e) => setForm({ ...form, cepStart: formatBrazilianCep(e.target.value) })} /></div>
+              <div><Label>CEP final</Label><Input inputMode="numeric" placeholder="00000-000" value={formatBrazilianCep(form.cepEnd)} onChange={(e) => setForm({ ...form, cepEnd: formatBrazilianCep(e.target.value) })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Taxa</Label><Input type="number" step="0.01" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} /></div>

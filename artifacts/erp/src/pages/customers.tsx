@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { formatBrazilianPhone } from "@/lib/br-formats";
 
 type Customer = {
   id: number;
@@ -59,7 +60,7 @@ export default function Customers() {
     setEditing(customer);
     setForm({
       name: customer.name,
-      whatsapp: customer.whatsapp || customer.phone,
+      whatsapp: formatBrazilianPhone(customer.whatsapp || customer.phone),
       email: customer.email || "",
       birthDate: customer.birthDate || "",
       address: customer.address || "",
@@ -86,7 +87,7 @@ export default function Customers() {
         </h2>
         <div className="grid gap-3 md:grid-cols-4">
           <div><Label>Nome *</Label><Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
-          <div><Label>WhatsApp *</Label><Input value={form.whatsapp} onChange={(event) => setForm({ ...form, whatsapp: event.target.value })} /></div>
+          <div><Label>WhatsApp *</Label><Input inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={form.whatsapp} onChange={(event) => setForm({ ...form, whatsapp: formatBrazilianPhone(event.target.value) })} /></div>
           <div><Label>Email</Label><Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
           <div><Label>Nascimento</Label><Input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} /></div>
           <div className="md:col-span-2"><Label>Endereço</Label><Input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></div>
@@ -111,7 +112,7 @@ export default function Customers() {
           <div key={customer.id} className="flex flex-col justify-between gap-3 rounded-lg border bg-white p-4 shadow-sm md:flex-row md:items-center">
             <div>
               <h2 className="font-semibold">{customer.name}</h2>
-              <p className="text-sm text-muted-foreground">{customer.whatsapp || customer.phone} - {customer.email || "sem email"} - {customer.address || "sem endereço"} - {customer.neighborhood || "sem bairro"}</p>
+              <p className="text-sm text-muted-foreground">{formatBrazilianPhone(customer.whatsapp || customer.phone)} - {customer.email || "sem email"} - {customer.address || "sem endereço"} - {customer.neighborhood || "sem bairro"}</p>
               <p className="text-xs text-muted-foreground">{customer.totalOrders} pedido(s) - {money(customer.totalSpent)} - Cartão fidelidade: {customer.loyaltyPoints} ponto(s)</p>
             </div>
             <div className="flex justify-end gap-1">

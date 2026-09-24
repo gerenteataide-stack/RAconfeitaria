@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { formatBrazilianPhone } from "@/lib/br-formats";
 
 type Product = { id: number; name: string; price: number; available: boolean };
 type Customer = { id: number; name: string; phone: string; whatsapp?: string | null; address: string | null; neighborhood?: string | null };
@@ -89,7 +90,7 @@ export default function NewOrder() {
       ...form,
       customerId: id,
       customerName: customer?.name ?? "",
-      customerWhatsapp: customer?.whatsapp ?? customer?.phone ?? "",
+      customerWhatsapp: formatBrazilianPhone(customer?.whatsapp ?? customer?.phone ?? ""),
       deliveryAddress: customer?.address ?? "",
       neighborhood: customer?.neighborhood ?? "",
     });
@@ -125,7 +126,7 @@ export default function NewOrder() {
             </Select>
           </div>
           <div><Label>Nome</Label><Input value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} /></div>
-          <div><Label>WhatsApp</Label><Input value={form.customerWhatsapp} onChange={(event) => setForm({ ...form, customerWhatsapp: event.target.value })} /></div>
+          <div><Label>WhatsApp</Label><Input inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={form.customerWhatsapp} onChange={(event) => setForm({ ...form, customerWhatsapp: formatBrazilianPhone(event.target.value) })} /></div>
           <div>
             <Label>Tipo</Label>
             <Select value={form.deliveryType} onValueChange={(deliveryType) => setForm({ ...form, deliveryType })}>
