@@ -29,6 +29,59 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const MAX_PRODUCT_IMAGE_BYTES = 1.8 * 1024 * 1024;
+
+async function prepareProductImage(file: File): Promise<File> {
+  const passThroughTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+  if (file.size <= MAX_PRODUCT_IMAGE_BYTES && passThroughTypes.has(file.type)) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Não foi possível abrir essa imagem."));
+      image.src = objectUrl;
+    });
+
+    const formats = ["image/webp", "image/jpeg"] as const;
+    const dimensions = [2200, 1800, 1600, 1400, 1200];
+    const qualities = [0.84, 0.76, 0.68, 0.6];
+
+    for (const format of formats) {
+      for (const maxDimension of dimensions) {
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Não foi possível preparar a imagem.");
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, format, quality));
+          if (blob && blob.size <= MAX_PRODUCT_IMAGE_BYTES) {
+            const extension = blob.type === "image/webp" ? "webp" : "jpg";
+            const name = file.name.replace(/\.[^.]+$/, "") || "produto";
+            return new File([blob], `${name}.${extension}`, { type: blob.type, lastModified: file.lastModified });
+          }
+        }
+      }
+    }
+
+    throw new Error("A foto continua muito grande. Escolha uma imagem menor.");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("continua muito grande")) throw error;
+    throw new Error("Não foi possível ler a foto. Use uma imagem JPG, PNG ou WebP.");
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 interface ProductFormState {
   name: string;
   description: string;
@@ -163,7 +216,7 @@ export default function Products() {
     setUploadingId(id);
     try {
       const fd = new FormData();
-      fd.append("image", file);
+      fd.append("image", await prepareProductImage(file));
       const token = getAuthToken();
       const res = await fetch(`/api/products/${id}/image`, {
         method: "POST",
