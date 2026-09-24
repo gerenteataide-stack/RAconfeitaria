@@ -13,6 +13,8 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../lib/auth";
 import { createRateLimit } from "../lib/security";
+import { sendNewOrderPush } from "../lib/firebase-admin";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const createOrderRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
@@ -155,6 +157,11 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
   }
 
   const result = await getOrderWithItems(order.id);
+  try {
+    await sendNewOrderPush(order.id);
+  } catch (error) {
+    logger.warn({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Firebase order notification was not sent");
+  }
   res.status(201).json(result);
 });
 

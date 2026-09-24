@@ -32,6 +32,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/auth";
 import { apiRequest } from "@/lib/api";
+import { listenForOrderPushMessages } from "@/lib/firebase-push";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
@@ -54,6 +57,7 @@ const NAV_ITEMS = [
 function LayoutShell({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, can, logout } = useAuth();
+  const { toast } = useToast();
   const { isMobile, setOpenMobile } = useSidebar();
   const visibleItems = NAV_ITEMS.filter((item) => can(item.permission));
   const canViewOrders = can("orders");
@@ -64,6 +68,40 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
     refetchInterval: 15000,
   });
   const newOrderCount = newOrders.length;
+
+  useEffect(() => {
+    if (user?.role !== "owner" && user?.role !== "manager") return;
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    void listenForOrderPushMessages((payload) => {
+      if (payload.data?.type !== "new_order") return;
+      if (document.visibilityState === "hidden" && "Notification" in window && Notification.permission === "granted") {
+        void navigator.serviceWorker.ready.then((registration) => registration.showNotification(
+          payload.data?.title || "Novo pedido recebido",
+          {
+            body: payload.data?.body || "Um novo pedido está aguardando atendimento.",
+            icon: "/logo.png",
+            badge: "/logo.png",
+            tag: payload.data?.tag || `pedido-${payload.data?.orderId || "novo"}`,
+            data: { url: payload.data?.url || "/orders" },
+          },
+        ));
+        return;
+      }
+      if (!location.startsWith("/orders")) {
+        toast({ title: "Novo pedido recebido", description: "Um novo pedido está aguardando atendimento." });
+      }
+    }).then((stop) => {
+      if (cancelled) stop();
+      else unsubscribe = stop;
+    }).catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [location, toast, user?.role]);
 
   function closeMobileMenu() {
     if (isMobile) setOpenMobile(false);

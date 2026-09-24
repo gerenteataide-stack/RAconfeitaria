@@ -14,6 +14,7 @@ import operationsRouter from "./operations";
 import paymentsRouter from "./payments";
 import pricingRouter from "./pricing";
 import pricingModuleRouter from "./pricing-module";
+import pushTokensRouter from "./push-tokens";
 import { requireAuth, requirePermission } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -35,6 +36,7 @@ router.use(categoriesRouter);
 router.use(productsRouter);
 router.use(customersRouter);
 router.use(ordersRouter);
+router.use(pushTokensRouter);
 router.use(protectPrefix("/production", "production"));
 router.use(productionRouter);
 router.use(protectPrefix("/stock", "stock"));

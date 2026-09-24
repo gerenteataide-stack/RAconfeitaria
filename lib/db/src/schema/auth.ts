@@ -51,6 +51,18 @@ export const passwordResetTokensTable = pgTable("password_reset_tokens", {
   passwordResetUserIndex: index("password_reset_tokens_user_id_idx").on(table.userId),
 }));
 
+export const pushTokensTable = pgTable("push_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => ({
+  pushTokenHashUnique: uniqueIndex("push_tokens_token_hash_unique").on(table.tokenHash),
+  pushTokenUserIndex: index("push_tokens_user_id_idx").on(table.userId),
+}));
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;

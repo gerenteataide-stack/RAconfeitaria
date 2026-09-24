@@ -6,6 +6,7 @@ import { ptBR } from "date-fns/locale";
 import {
   Check,
   Clock,
+  BellRing,
   Filter,
   Megaphone,
   MapPin,
@@ -27,6 +28,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/auth";
+import { apiRequest } from "@/lib/api";
+import { getCurrentOrderPushToken, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
 
 function playOrderAlert(context: AudioContext) {
   const startedAt = context.currentTime;
@@ -88,8 +92,11 @@ function nextActions(order: Order): Array<{ label: string; status: OrderStatusUp
 export default function Orders() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [orderSoundEnabled, setOrderSoundEnabled] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("ra-order-push-enabled") === "true");
+  const [pushBusy, setPushBusy] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const orderSnapshotRef = useRef<{ date: string; ids: Set<number> | null }>({ date: selectedDate, ids: null });
   const orderParams = selectedDate ? { date: selectedDate } : undefined;
@@ -151,6 +158,45 @@ export default function Orders() {
     }
   }
 
+  async function toggleOrderPush(enabled: boolean) {
+    setPushBusy(true);
+    try {
+      if (enabled) {
+        const token = await registerOrderPush();
+        const result = await apiRequest<{ serverConfigured: boolean }>("/api/push-tokens", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        });
+        localStorage.setItem("ra-order-push-enabled", "true");
+        setPushEnabled(true);
+        toast(result.serverConfigured
+          ? { title: "Notificações ativadas", description: "Este navegador receberá avisos de novos pedidos." }
+          : { title: "Navegador autorizado", description: "Para enviar os avisos pelo Firebase, falta configurar a credencial segura do servidor na Vercel." });
+      } else {
+        const token = await getCurrentOrderPushToken();
+        if (token) {
+          await apiRequest<void>("/api/push-tokens", {
+            method: "DELETE",
+            body: JSON.stringify({ token }),
+          });
+        }
+        await removeOrderPushToken();
+        localStorage.removeItem("ra-order-push-enabled");
+        setPushEnabled(false);
+        toast({ title: "Notificações desativadas" });
+      }
+    } catch (error) {
+      setPushEnabled(!enabled);
+      toast({
+        title: enabled ? "Não foi possível ativar as notificações" : "Não foi possível desativar as notificações",
+        description: error instanceof Error ? error.message : "Tente novamente neste navegador.",
+        variant: "destructive",
+      });
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
   function changeStatus(order: Order, status: OrderStatusUpdateStatus) {
     updateStatus.mutate({ id: order.id, data: { status } });
   }
@@ -190,6 +236,13 @@ export default function Orders() {
           <Switch aria-label="Ativar som para novos pedidos" checked={orderSoundEnabled} onCheckedChange={toggleOrderSound} />
           <span className="text-sm text-muted-foreground">Som</span>
         </div>
+        {(user?.role === "owner" || user?.role === "manager") && (
+          <div className="flex items-center gap-2 px-1" title="Receber avisos de pedidos neste navegador">
+            <BellRing className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Switch aria-label="Ativar notificações de pedidos" checked={pushEnabled} onCheckedChange={toggleOrderPush} disabled={pushBusy} />
+            <span className="text-sm text-muted-foreground">Notificações</span>
+          </div>
+        )}
         <Button variant="ghost" size="sm" className="text-muted-foreground">
           <Filter className="mr-2 h-4 w-4" />
           Filtros
