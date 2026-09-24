@@ -1,8 +1,9 @@
 {
   "name": "Rochelle Ataide Confeitaria",
   "short_name": "RA Confeitaria",
-  "description": "ERP e cardapio online da Rochelle Ataide Confeitaria.",
-  "start_url": "/dashboard",
+  "description": "Landing page e cardápio online da Rochelle Ataide Confeitaria.",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#FFF9FC",

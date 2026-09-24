@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { ArrowRight, Cake, Instagram, MapPin, MessageCircle, Sparkles } from "lucide-react";
 import { type Product, useListProducts } from "@workspace/api-client-react";
 import { apiRequest } from "@/lib/api";
+import { useAuth } from "@/contexts/auth";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 type PublicSettings = {
   businessName: string;
@@ -36,6 +40,8 @@ function productHasPhoto(product: Product) {
 }
 
 export default function LandingPage() {
+  const [, navigate] = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
@@ -52,6 +58,10 @@ export default function LandingPage() {
     .sort((first, second) => Number(productHasPhoto(second)) - Number(productHasPhoto(first)))
     .slice(0, 6);
 
+  useEffect(() => {
+    if (!authLoading && user) navigate("/dashboard", { replace: true });
+  }, [authLoading, navigate, user]);
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#FFF9FC] text-[#2C2C2C]">
       <section className="relative isolate flex min-h-[82svh] items-center overflow-hidden px-5 pb-20 pt-6 sm:px-8 lg:px-16">
@@ -59,7 +69,7 @@ export default function LandingPage() {
         <img
           src="/confeiteira-rochelle.png"
           alt={`Confeiteira ${businessName}`}
-          className="pointer-events-none absolute -right-28 bottom-0 -z-10 h-[72%] max-w-none object-contain opacity-40 sm:right-0 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
+          className="pointer-events-none absolute -bottom-[2%] -right-[24%] -z-10 h-[58%] max-w-none object-contain object-bottom opacity-40 sm:right-0 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
         />
 
         <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center px-5 py-5 sm:px-8 lg:px-16">
@@ -97,6 +107,7 @@ export default function LandingPage() {
               >
                 Conhecer os produtos
               </a>
+              <PwaInstallPrompt />
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[#544A51]">
               {whatsappUrl && (
@@ -117,6 +128,9 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        <a href="/login" className="absolute right-5 top-6 z-20 text-xs font-medium text-[#66735B] underline-offset-4 hover:text-[#7B2E68] hover:underline sm:right-8 lg:right-16">
+          Área do gestor
+        </a>
         <a href="#produtos" className="absolute bottom-5 left-1/2 z-10 -translate-x-1/2 text-xs font-medium text-[#66735B] hover:text-[#7B2E68]">
           Descubra os sabores
         </a>

@@ -2,7 +2,7 @@ importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js");
 
 const CACHE_NAME = "ra-confeitaria-v2";
-const APP_SHELL = ["/", "/dashboard", "/cardapio", "/manifest.webmanifest", "/logo.png"];
+const APP_SHELL = ["/", "/cardapio", "/manifest.webmanifest", "/logo.png"];
 
 firebase.initializeApp({
   apiKey: "AIzaSyCg7dC0dr68hWERsItQu_-FDFz7YRK8jcM",
