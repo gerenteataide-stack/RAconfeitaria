@@ -1,5 +1,6 @@
 ﻿import { useState } from "react";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 import { ShoppingCart, Plus, Minus, Cake, Star, Search } from "lucide-react";
 import { useListProducts } from "@workspace/api-client-react";
 import { useListCategories } from "@workspace/api-client-react";
@@ -30,6 +31,14 @@ export default function StoreCatalog() {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchesCat && matchesSearch;
   });
+
+  useEffect(() => {
+    if (!allProducts.length || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [allProducts.length]);
 
   function getQty(productId: number) {
     return quantities[productId] ?? 1;
@@ -192,8 +201,8 @@ export default function StoreCatalog() {
             {products.map((product) => {
               const inCart = cartInCart(product.id);
               return (
-                <div key={product.id}
-                  className="bg-white rounded-2xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                <div key={product.id} id={`produto-${product.id}`}
+                  className="scroll-mt-24 bg-white rounded-2xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
                   {/* Product image */}
                   <div className="h-44 flex items-center justify-center relative overflow-hidden"
                     style={{ background: "linear-gradient(135deg, #FFF0F8 0%, #F8F0FF 100%)" }}>

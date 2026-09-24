@@ -27,6 +27,7 @@ import PricingSimulatorPage from "@/pages/pricing-simulator";
 import Login from "@/pages/login";
 import UsersPage from "@/pages/users";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
 
 import StoreCatalog from "@/pages/store/catalog";
 import StoreCheckout from "@/pages/store/checkout";
@@ -88,6 +89,7 @@ function AdminRouter() {
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
       <Route path="/cardapio" component={StoreRouter} />
       <Route path="/cardapio/:rest*" component={StoreRouter} />
