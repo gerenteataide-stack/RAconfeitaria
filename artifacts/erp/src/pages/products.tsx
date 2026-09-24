@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { getAuthToken } from "@/lib/auth-token";
 import { Plus, Upload, Pencil, Trash2, Package, ImageIcon, Loader2 } from "lucide-react";
 
 function fmt(v: number) {
@@ -163,10 +164,20 @@ export default function Products() {
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const res = await fetch(`/api/products/${id}/image`, { method: "POST", body: fd });
+      const token = getAuthToken();
+      const res = await fetch(`/api/products/${id}/image`, {
+        method: "POST",
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+        body: fd,
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => null) as { error?: string } | null;
-        throw new Error(data?.error ?? "Upload failed");
+        const message = res.status === 401
+          ? "Sua sessão expirou. Entre novamente para enviar fotos."
+          : res.status === 403
+            ? "Seu perfil não tem permissão para alterar fotos de produtos."
+            : data?.error ?? `Não foi possível enviar a foto (erro ${res.status}).`;
+        throw new Error(message);
       }
       await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
       toast({ title: "Foto atualizada!" });
@@ -258,20 +269,21 @@ export default function Products() {
                       <ImageIcon className="w-10 h-10 opacity-20" style={{ color: "#7B2E68" }} />
                     </div>
                   )}
-                  {/* Upload overlay */}
+                  {/* Upload stays visible on touch screens and can be reached by keyboard. */}
                   <button
+                    type="button"
                     onClick={() => triggerUpload(p.id)}
                     disabled={isUploading}
-                    className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+                    aria-label={`${p.imageUrl ? "Trocar" : "Adicionar"} foto de ${p.name}`}
+                    title={`${p.imageUrl ? "Trocar" : "Adicionar"} foto`}
+                    className="absolute bottom-2 right-2 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-white/95 px-2.5 text-xs font-semibold text-[#7B2E68] shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7B2E68] disabled:opacity-60"
                   >
                     {isUploading ? (
-                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <div className="flex flex-col items-center gap-1 text-white">
-                        <Upload className="w-5 h-5" />
-                        <span className="text-xs font-medium">{p.imageUrl ? "Trocar foto" : "Adicionar foto"}</span>
-                      </div>
+                      <Upload className="h-4 w-4" aria-hidden="true" />
                     )}
+                    <span>{isUploading ? "Enviando…" : p.imageUrl ? "Trocar foto" : "Adicionar foto"}</span>
                   </button>
                   {/* Available badge */}
                   <div className="absolute top-2 left-2">
