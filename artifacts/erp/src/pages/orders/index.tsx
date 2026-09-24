@@ -31,24 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/auth";
 import { apiRequest } from "@/lib/api";
 import { getCurrentOrderPushToken, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
-
-function playOrderAlert(context: AudioContext) {
-  const startedAt = context.currentTime;
-  [880, 660].forEach((frequency, index) => {
-    const startAt = startedAt + index * 0.2;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.linearRampToValueAtTime(0.08, startAt + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.17);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(startAt);
-    oscillator.stop(startAt + 0.18);
-  });
-}
+import { playOrderSound, unlockOrderSound } from "@/lib/order-sound";
 
 const PAYMENT_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -66,6 +49,14 @@ const STATUS_CONFIG = {
   out_for_delivery: { label: "Saiu para entrega", color: "bg-orange-100 text-orange-800 border-orange-200", icon: Truck },
   delivered: { label: "Entregue", color: "bg-green-100 text-green-800 border-green-200", icon: Check },
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800 border-red-200", icon: X },
+};
+
+type PushTestResult = {
+  status: "not_configured" | "no_recipients" | "sent" | "partial_failure" | "failed";
+  recipients: number;
+  sent: number;
+  failed: number;
+  errorCodes: Record<string, number>;
 };
 
 const KANBAN_COLUMNS = [
@@ -94,10 +85,9 @@ export default function Orders() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-  const [orderSoundEnabled, setOrderSoundEnabled] = useState(false);
+  const [orderSoundEnabled, setOrderSoundEnabled] = useState(() => localStorage.getItem("ra-order-sound-enabled") !== "false");
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("ra-order-push-enabled") === "true");
   const [pushBusy, setPushBusy] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const orderSnapshotRef = useRef<{ date: string; ids: Set<number> | null }>({ date: selectedDate, ids: null });
   const orderParams = selectedDate ? { date: selectedDate } : undefined;
   const { data: orders = [], isLoading } = useListOrders(orderParams, {
@@ -123,6 +113,26 @@ export default function Orders() {
   const newOrders = getColumnOrders("new");
 
   useEffect(() => {
+    if (!orderSoundEnabled) return;
+
+    const unlockAudio = () => {
+      void unlockOrderSound().then((unlocked) => {
+        if (unlocked) {
+          window.removeEventListener("pointerdown", unlockAudio);
+          window.removeEventListener("keydown", unlockAudio);
+        }
+      });
+    };
+
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [orderSoundEnabled]);
+
+  useEffect(() => {
     if (orderSnapshotRef.current.date !== selectedDate) {
       orderSnapshotRef.current = { date: selectedDate, ids: null };
     }
@@ -133,10 +143,8 @@ export default function Orders() {
     const arrivals = previousIds
       ? orders.filter((order) => !previousIds.has(order.id) && (order.status === "new" || order.status === "awaiting_payment"))
       : [];
-    const context = audioContextRef.current;
-
-    if (orderSoundEnabled && arrivals.length > 0 && context) {
-      void context.resume().then(() => playOrderAlert(context));
+    if (orderSoundEnabled && arrivals.length > 0) {
+      playOrderSound();
       toast({ title: "Novo pedido recebido", description: `${arrivals.length} pedido(s) novo(s).` });
     }
     orderSnapshotRef.current = { date: selectedDate, ids: currentIds };
@@ -144,16 +152,15 @@ export default function Orders() {
 
   async function toggleOrderSound(enabled: boolean) {
     setOrderSoundEnabled(enabled);
+    localStorage.setItem("ra-order-sound-enabled", String(enabled));
+    window.dispatchEvent(new Event("ra-order-sound-preference"));
     try {
       if (!enabled) return;
 
-      const context = audioContextRef.current ?? new AudioContext();
-      audioContextRef.current = context;
-      await context.resume();
-      playOrderAlert(context);
+      if (!await unlockOrderSound()) throw new Error("Audio is not available");
+      playOrderSound();
       toast({ title: "Som de pedidos ativado" });
     } catch {
-      setOrderSoundEnabled(false);
       toast({ title: "Não foi possível ativar o som", description: "Verifique se o navegador permite áudio.", variant: "destructive" });
     }
   }
@@ -192,6 +199,29 @@ export default function Orders() {
         description: error instanceof Error ? error.message : "Tente novamente neste navegador.",
         variant: "destructive",
       });
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function testOrderPush() {
+    setPushBusy(true);
+    try {
+      const result = await apiRequest<PushTestResult>("/api/push-tokens/test", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const messages: Record<PushTestResult["status"], { title: string; description: string }> = {
+        sent: { title: "Teste enviado", description: "Confira se a notificação apareceu neste navegador." },
+        no_recipients: { title: "Este navegador não está inscrito", description: "Ative as notificações neste dispositivo e tente novamente." },
+        not_configured: { title: "Firebase não configurado", description: "A credencial segura do servidor não está válida na Vercel." },
+        partial_failure: { title: "Envio parcial", description: `${result.sent} enviado(s), ${result.failed} com erro.` },
+        failed: { title: "O Firebase recusou o teste", description: Object.keys(result.errorCodes).join(", ") || "Confira os logs do servidor para ver o motivo." },
+      };
+      const message = messages[result.status];
+      toast({ title: message.title, description: message.description, variant: result.status === "sent" ? "default" : "destructive" });
+    } catch (error) {
+      toast({ title: "Não foi possível testar a notificação", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
     } finally {
       setPushBusy(false);
     }
@@ -241,6 +271,9 @@ export default function Orders() {
             <BellRing className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Switch aria-label="Ativar notificações de pedidos" checked={pushEnabled} onCheckedChange={toggleOrderPush} disabled={pushBusy} />
             <span className="text-sm text-muted-foreground">Notificações</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => void testOrderPush()} disabled={pushBusy || !pushEnabled}>
+              Testar
+            </Button>
           </div>
         )}
         <Button variant="ghost" size="sm" className="text-muted-foreground">
@@ -288,8 +321,9 @@ export default function Orders() {
                           <div>
                             <h4 className="line-clamp-1 text-sm font-medium text-foreground">{order.customerName || "Cliente não informado"}</h4>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              Data: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}
-                              {order.deliveryTime && ` às ${order.deliveryTime}`}
+                              {order.deliveryDate ? (
+                                <>Data: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}{order.deliveryTime && ` às ${order.deliveryTime}`}</>
+                              ) : "Data de entrega a combinar"}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               Pagamento: {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod : "A combinar"}

@@ -25,7 +25,8 @@ export interface Order {
   deliveryType: OrderDeliveryType;
   /** @nullable */
   deliveryAddress?: string | null;
-  deliveryDate: string;
+  /** @nullable */
+  deliveryDate: string | null;
   /** @nullable */
   deliveryTime?: string | null;
   deliveryFee?: number;

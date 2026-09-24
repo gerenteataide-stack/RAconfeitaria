@@ -12,7 +12,7 @@ export const ordersTable = pgTable("orders", {
   total: numeric("total", { precision: 10, scale: 2 }).notNull().default("0"),
   deliveryType: text("delivery_type").notNull().default("pickup"),
   deliveryAddress: text("delivery_address"),
-  deliveryDate: date("delivery_date", { mode: "string" }).notNull(),
+  deliveryDate: date("delivery_date", { mode: "string" }),
   deliveryTime: text("delivery_time"),
   deliveryFee: numeric("delivery_fee", { precision: 10, scale: 2 }).notNull().default("0"),
   notes: text("notes"),

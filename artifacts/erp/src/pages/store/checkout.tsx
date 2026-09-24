@@ -160,7 +160,7 @@ export default function StoreCheckout() {
       toast({ title: "Carrinho vazio", description: "Adicione produtos antes de finalizar.", variant: "destructive" });
       return;
     }
-    if (!form.customerName || !form.customerPhone || !form.deliveryDate) {
+    if (!form.customerName || !form.customerPhone || (form.deliveryType === "pickup" && !form.deliveryDate)) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
@@ -190,7 +190,7 @@ export default function StoreCheckout() {
           paymentMethod,
           deliveryType: form.deliveryType,
           deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress} - ${form.neighborhood}${form.cep ? ` - CEP ${form.cep}` : ""}` : undefined,
-          deliveryDate: form.deliveryDate,
+          deliveryDate: form.deliveryType === "pickup" ? form.deliveryDate : undefined,
           deliveryFee: deliveryFee,
           notes: [form.notes, appliedCoupon ? `Cupom aplicado: ${appliedCoupon.code}` : ""].filter(Boolean).join("\n") || undefined,
           items: discountedItems,
@@ -325,18 +325,20 @@ export default function StoreCheckout() {
             </div>
 
             {/* Date */}
-            <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
-              <h2 className="font-semibold mb-4">Data desejada</h2>
-              <div>
-                <Label htmlFor="date" className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4" /> Data de {form.deliveryType === "pickup" ? "retirada" : "entrega"} *
-                </Label>
-                <Input id="date" type="date" value={form.deliveryDate}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => handleChange("deliveryDate", e.target.value)} className="mt-1" required />
-                <p className="text-xs text-muted-foreground mt-1">Escolha a data desejada. Pedidos para o mesmo dia serão confirmados pelo WhatsApp.</p>
+            {form.deliveryType === "pickup" && (
+              <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
+                <h2 className="font-semibold mb-4">Data desejada</h2>
+                <div>
+                  <Label htmlFor="date" className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" /> Data de retirada *
+                  </Label>
+                  <Input id="date" type="date" value={form.deliveryDate}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => handleChange("deliveryDate", e.target.value)} className="mt-1" required />
+                  <p className="text-xs text-muted-foreground mt-1">Escolha a data desejada. Pedidos para o mesmo dia serão confirmados pelo WhatsApp.</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-pink-100 p-5 shadow-sm">
               <h2 className="font-semibold mb-4">Forma de pagamento</h2>

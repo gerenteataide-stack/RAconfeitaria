@@ -157,6 +157,19 @@ export interface CustomerUpdate {
   notes?: string;
 }
 
+/**
+ * @nullable
+ */
+export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPaymentMethod] | null;
+
+
+export const OrderPaymentMethod = {
+  pix: 'pix',
+  cash: 'cash',
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+} as const;
+
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
 
@@ -198,13 +211,15 @@ export interface Order {
   customerName?: string | null;
   /** @nullable */
   customerPhone?: string | null;
+  /** @nullable */
   paymentMethod?: OrderPaymentMethod;
   status: OrderStatus;
   total: number;
   deliveryType: OrderDeliveryType;
   /** @nullable */
   deliveryAddress?: string | null;
-  deliveryDate: string;
+  /** @nullable */
+  deliveryDate: string | null;
   /** @nullable */
   deliveryTime?: string | null;
   deliveryFee?: number;
@@ -233,6 +248,16 @@ export interface OrderItemInput {
   notes?: string;
 }
 
+export type OrderInputPaymentMethod = typeof OrderInputPaymentMethod[keyof typeof OrderInputPaymentMethod];
+
+
+export const OrderInputPaymentMethod = {
+  pix: 'pix',
+  cash: 'cash',
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+} as const;
+
 export type OrderInputDeliveryType = typeof OrderInputDeliveryType[keyof typeof OrderInputDeliveryType];
 
 
@@ -248,12 +273,22 @@ export interface OrderInput {
   paymentMethod?: OrderInputPaymentMethod;
   deliveryType: OrderInputDeliveryType;
   deliveryAddress?: string;
-  deliveryDate: string;
+  deliveryDate?: string;
   deliveryTime?: string;
   deliveryFee?: number;
   notes?: string;
   items: OrderItemInput[];
 }
+
+export type OrderUpdatePaymentMethod = typeof OrderUpdatePaymentMethod[keyof typeof OrderUpdatePaymentMethod];
+
+
+export const OrderUpdatePaymentMethod = {
+  pix: 'pix',
+  cash: 'cash',
+  debit_card: 'debit_card',
+  credit_card: 'credit_card',
+} as const;
 
 export type OrderUpdateDeliveryType = typeof OrderUpdateDeliveryType[keyof typeof OrderUpdateDeliveryType];
 
@@ -270,35 +305,12 @@ export interface OrderUpdate {
   paymentMethod?: OrderUpdatePaymentMethod;
   deliveryType?: OrderUpdateDeliveryType;
   deliveryAddress?: string;
-  deliveryDate?: string;
+  /** @nullable */
+  deliveryDate?: string | null;
   deliveryTime?: string;
   deliveryFee?: number;
   notes?: string;
 }
-
-export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPaymentMethod] | null;
-export const OrderPaymentMethod = {
-  pix: "pix",
-  cash: "cash",
-  debit_card: "debit_card",
-  credit_card: "credit_card",
-} as const;
-
-export type OrderInputPaymentMethod = typeof OrderInputPaymentMethod[keyof typeof OrderInputPaymentMethod];
-export const OrderInputPaymentMethod = {
-  pix: "pix",
-  cash: "cash",
-  debit_card: "debit_card",
-  credit_card: "credit_card",
-} as const;
-
-export type OrderUpdatePaymentMethod = typeof OrderUpdatePaymentMethod[keyof typeof OrderUpdatePaymentMethod];
-export const OrderUpdatePaymentMethod = {
-  pix: "pix",
-  cash: "cash",
-  debit_card: "debit_card",
-  credit_card: "credit_card",
-} as const;
 
 export type OrderStatusUpdateStatus = typeof OrderStatusUpdateStatus[keyof typeof OrderStatusUpdateStatus];
 
@@ -430,16 +442,12 @@ export interface Recipe {
   productName: string;
   yield: number;
   prepTime: number;
-  fixedCost: number;
-  variableCost: number;
-  variablePercent: number;
   /** @nullable */
   instructions?: string | null;
-  ingredientsCost: number;
   totalCost: number;
   unitCost: number;
-  productPrice: number;
-  suggestedPrice: number;
+  productPrice?: number;
+  suggestedPrice?: number;
   /** @nullable */
   cmvPercent?: number | null;
   /** @nullable */
@@ -457,7 +465,6 @@ export interface RecipeInput {
 }
 
 export interface RecipeUpdate {
-  productId?: number;
   yield?: number;
   prepTime?: number;
   instructions?: string;

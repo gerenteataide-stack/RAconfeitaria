@@ -34,7 +34,9 @@ import { useAuth } from "@/contexts/auth";
 import { apiRequest } from "@/lib/api";
 import { listenForOrderPushMessages } from "@/lib/firebase-push";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { playOrderSound, unlockOrderSound } from "@/lib/order-sound";
 
 const NAV_ITEMS = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
@@ -59,6 +61,7 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
   const { user, can, logout } = useAuth();
   const { toast } = useToast();
   const { isMobile, setOpenMobile } = useSidebar();
+  const [orderSoundEnabled, setOrderSoundEnabled] = useState(() => localStorage.getItem("ra-order-sound-enabled") !== "false");
   const visibleItems = NAV_ITEMS.filter((item) => can(item.permission));
   const canViewOrders = can("orders");
   const { data: newOrders = [] } = useQuery({
@@ -70,12 +73,37 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
   const newOrderCount = newOrders.length;
 
   useEffect(() => {
+    const syncPreference = () => setOrderSoundEnabled(localStorage.getItem("ra-order-sound-enabled") !== "false");
+    window.addEventListener("ra-order-sound-preference", syncPreference);
+    return () => window.removeEventListener("ra-order-sound-preference", syncPreference);
+  }, []);
+
+  useEffect(() => {
+    if (!orderSoundEnabled) return;
+    const unlockAudio = () => {
+      void unlockOrderSound().then((unlocked) => {
+        if (!unlocked) return;
+        window.removeEventListener("pointerdown", unlockAudio);
+        window.removeEventListener("keydown", unlockAudio);
+      });
+    };
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [orderSoundEnabled]);
+
+  useEffect(() => {
     if (user?.role !== "owner" && user?.role !== "manager") return;
     let unsubscribe: (() => void) | undefined;
     let cancelled = false;
 
     void listenForOrderPushMessages((payload) => {
-      if (payload.data?.type !== "new_order") return;
+      const isTest = payload.data?.type === "test_notification";
+      if (payload.data?.type !== "new_order" && !isTest) return;
+      if (orderSoundEnabled && (isTest || !location.startsWith("/orders"))) playOrderSound();
       if (document.visibilityState === "hidden" && "Notification" in window && Notification.permission === "granted") {
         void navigator.serviceWorker.ready.then((registration) => registration.showNotification(
           payload.data?.title || "Novo pedido recebido",
@@ -89,8 +117,11 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
         ));
         return;
       }
-      if (!location.startsWith("/orders")) {
-        toast({ title: "Novo pedido recebido", description: "Um novo pedido está aguardando atendimento." });
+      if (isTest || !location.startsWith("/orders")) {
+        toast({
+          title: payload.data?.title || "Novo pedido recebido",
+          description: payload.data?.body || "Um novo pedido está aguardando atendimento.",
+        });
       }
     }).then((stop) => {
       if (cancelled) stop();
@@ -101,7 +132,7 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
-  }, [location, toast, user?.role]);
+  }, [location, orderSoundEnabled, toast, user?.role]);
 
   function closeMobileMenu() {
     if (isMobile) setOpenMobile(false);
@@ -155,6 +186,7 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
                 <div className="rounded-md border border-sidebar-border bg-white/70 p-3">
                   <p className="truncate text-sm font-medium text-primary">{user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.roleLabel}</p>
+                  <PwaInstallPrompt compact />
                   <Button type="button" variant="outline" size="sm" className="mt-3 w-full" onClick={logout}>
                     Sair
                   </Button>

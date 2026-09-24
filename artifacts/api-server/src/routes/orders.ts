@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../lib/auth";
 import { createRateLimit } from "../lib/security";
-import { sendNewOrderPush } from "../lib/firebase-admin";
+import { getFirebaseErrorCode, sendNewOrderPush } from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -116,6 +116,10 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const { items, ...orderData } = parsed.data;
+  if (orderData.deliveryType === "pickup" && !orderData.deliveryDate) {
+    res.status(400).json({ error: "Delivery date is required for pickup orders" });
+    return;
+  }
   const total = items.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0) + (orderData.deliveryFee ?? 0);
   const customerId = await ensureCustomerForOrder(orderData);
 
@@ -158,9 +162,14 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
 
   const result = await getOrderWithItems(order.id);
   try {
-    await sendNewOrderPush(order.id);
+    const pushResult = await sendNewOrderPush(order.id);
+    logger.info({ orderId: order.id, ...pushResult }, "Firebase order notification attempt completed");
   } catch (error) {
-    logger.warn({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Firebase order notification was not sent");
+    logger.warn({
+      orderId: order.id,
+      errorType: error instanceof Error ? error.name : "UnknownError",
+      errorCode: getFirebaseErrorCode(error),
+    }, "Firebase order notification was not sent");
   }
   res.status(201).json(result);
 });
@@ -178,6 +187,16 @@ router.patch("/orders/:id", requireAuth, requirePermission("orders"), async (req
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateOrderBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existing] = await db.select({ deliveryType: ordersTable.deliveryType, deliveryDate: ordersTable.deliveryDate })
+    .from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  if (!existing) { res.status(404).json({ error: "Order not found" }); return; }
+  const nextDeliveryType = parsed.data.deliveryType ?? existing.deliveryType;
+  const nextDeliveryDate = parsed.data.deliveryDate === undefined ? existing.deliveryDate : parsed.data.deliveryDate;
+  if (nextDeliveryType === "pickup" && !nextDeliveryDate) {
+    res.status(400).json({ error: "Delivery date is required for pickup orders" });
+    return;
+  }
 
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.deliveryFee !== undefined) updateData.deliveryFee = String(parsed.data.deliveryFee);

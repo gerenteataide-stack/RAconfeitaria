@@ -17,8 +17,12 @@ export interface Recipe {
   instructions?: string | null;
   totalCost: number;
   unitCost: number;
+  productPrice?: number;
+  suggestedPrice?: number;
   /** @nullable */
   cmvPercent?: number | null;
+  /** @nullable */
+  contributionMarginPercent?: number | null;
   ingredients?: RecipeIngredient[];
   createdAt: string;
 }

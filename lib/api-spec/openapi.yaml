@@ -1221,7 +1221,7 @@ components:
         deliveryAddress:
           type: ["string", "null"]
         deliveryDate:
-          type: string
+          type: ["string", "null"]
         deliveryTime:
           type: ["string", "null"]
         deliveryFee:
@@ -1271,7 +1271,7 @@ components:
 
     OrderInput:
       type: object
-      required: [deliveryType, deliveryDate, items]
+      required: [deliveryType, items]
       properties:
         customerId:
           type: integer
@@ -1318,7 +1318,7 @@ components:
         deliveryAddress:
           type: string
         deliveryDate:
-          type: string
+          type: ["string", "null"]
         deliveryTime:
           type: string
         deliveryFee:
@@ -1502,7 +1502,13 @@ components:
           type: number
         unitCost:
           type: number
+        productPrice:
+          type: number
+        suggestedPrice:
+          type: number
         cmvPercent:
+          type: ["number", "null"]
+        contributionMarginPercent:
           type: ["number", "null"]
         ingredients:
           type: array

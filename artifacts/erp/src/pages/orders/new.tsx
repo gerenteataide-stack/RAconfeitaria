@@ -64,7 +64,7 @@ export default function NewOrder() {
         customerPhone: form.customerWhatsapp || undefined,
         deliveryType: form.deliveryType === "in_person" ? "pickup" : form.deliveryType,
         deliveryAddress: form.deliveryAddress ? `${form.deliveryAddress}${form.neighborhood ? ` - ${form.neighborhood}` : ""}` : undefined,
-        deliveryDate: form.deliveryDate,
+        deliveryDate: form.deliveryType === "delivery" ? undefined : form.deliveryDate,
         deliveryTime: form.deliveryTime || undefined,
         deliveryFee,
         notes: [form.deliveryType === "in_person" ? "Venda presencial" : "", form.notes].filter(Boolean).join("\n") || undefined,
@@ -82,6 +82,11 @@ export default function NewOrder() {
       toast({ title: "Pedido criado" });
       navigate("/orders");
     },
+    onError: (error) => toast({
+      title: "Erro ao criar pedido",
+      description: error instanceof Error ? error.message : "Verifique os dados e tente novamente.",
+      variant: "destructive",
+    }),
   });
 
   function chooseCustomer(id: string) {
@@ -136,7 +141,7 @@ export default function NewOrder() {
           </div>
           <div className="md:col-span-2"><Label>Endereço</Label><Input value={form.deliveryAddress} onChange={(event) => setForm({ ...form, deliveryAddress: event.target.value })} /></div>
           <div><Label>Bairro</Label><Input value={form.neighborhood} onChange={(event) => setForm({ ...form, neighborhood: event.target.value })} /></div>
-          <div><Label>Data</Label><Input type="date" min={today} value={form.deliveryDate} onChange={(event) => setForm({ ...form, deliveryDate: event.target.value })} /></div>
+          {form.deliveryType !== "delivery" && <div><Label>Data *</Label><Input type="date" min={today} value={form.deliveryDate} onChange={(event) => setForm({ ...form, deliveryDate: event.target.value })} required /></div>}
           <div><Label>Horário</Label><Input value={form.deliveryTime} onChange={(event) => setForm({ ...form, deliveryTime: event.target.value })} placeholder="14:00" /></div>
           <div><Label>Frete</Label><Input type="number" value={String(deliveryFee)} onChange={(event) => setForm({ ...form, deliveryFee: event.target.value })} /></div>
           {form.deliveryType === "delivery" && form.neighborhood && selectedZone && <p className="text-xs text-green-700 md:col-span-2">Zona aplicada: {selectedZone.name}</p>}
@@ -169,7 +174,13 @@ export default function NewOrder() {
 
       <div className="flex items-center justify-between rounded-lg border bg-white p-4 shadow-sm">
         <div><p className="text-sm text-muted-foreground">Total do pedido</p><p className="text-2xl font-bold" style={{ color: "#7B2E68" }}>{money(total)}</p></div>
-        <Button disabled={create.isPending || lines.every((line) => !line.productId)} onClick={() => create.mutate()} style={{ backgroundColor: "#7B2E68" }}>
+        <Button disabled={create.isPending || lines.every((line) => !line.productId)} onClick={() => {
+          if (form.deliveryType !== "delivery" && !form.deliveryDate) {
+            toast({ title: "Informe a data de retirada", variant: "destructive" });
+            return;
+          }
+          create.mutate();
+        }} style={{ backgroundColor: "#7B2E68" }}>
           Criar pedido
         </Button>
       </div>

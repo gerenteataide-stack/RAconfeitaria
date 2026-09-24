@@ -16,7 +16,7 @@ export interface OrderInput {
   paymentMethod?: OrderInputPaymentMethod;
   deliveryType: OrderInputDeliveryType;
   deliveryAddress?: string;
-  deliveryDate: string;
+  deliveryDate?: string;
   deliveryTime?: string;
   deliveryFee?: number;
   notes?: string;

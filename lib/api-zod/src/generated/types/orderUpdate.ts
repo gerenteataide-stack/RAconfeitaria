@@ -15,7 +15,8 @@ export interface OrderUpdate {
   paymentMethod?: OrderUpdatePaymentMethod;
   deliveryType?: OrderUpdateDeliveryType;
   deliveryAddress?: string;
-  deliveryDate?: string;
+  /** @nullable */
+  deliveryDate?: string | null;
   deliveryTime?: string;
   deliveryFee?: number;
   notes?: string;
