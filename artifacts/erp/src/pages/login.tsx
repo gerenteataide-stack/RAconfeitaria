@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { LockKeyhole, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/auth";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export default function Login() {
       await login(email, password);
       navigate("/dashboard");
     } catch {
-      toast({ title: "Nao foi possivel entrar", description: "Confira email e senha.", variant: "destructive" });
+      toast({ title: "Não foi possível entrar", description: "Confira o e-mail e a senha.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ export default function Login() {
           <div className="max-w-2xl py-16">
             <p className="mb-3 text-sm font-medium uppercase tracking-[0.22em] text-[#8A9A75]">ERP premium</p>
             <h2 className="font-serif text-4xl font-bold leading-tight text-[#7B2E68] md:text-5xl">
-              Gestao de pedidos, producao, estoque e financeiro em um so painel.
+              Gestão de pedidos, produção, estoque e financeiro em um só painel.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
               Acesso protegido por perfil para manter cada area da confeitaria organizada e segura.
@@ -56,12 +56,12 @@ export default function Login() {
           <Card className="w-full rounded-lg border-pink-100 shadow-lg">
             <CardHeader>
               <CardTitle className="font-serif text-2xl text-[#7B2E68]">Entrar no painel</CardTitle>
-              <CardDescription>Use seu email e senha de acesso.</CardDescription>
+              <CardDescription>Use seu e-mail e senha de acesso.</CardDescription>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">E-mail</Label>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="pl-9" required />
@@ -73,6 +73,13 @@ export default function Login() {
                     <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="pl-9" required />
                   </div>
+                  {import.meta.env.DEV && (
+                    <div className="flex justify-end">
+                      <Link href="/esqueci-senha" className="text-sm font-medium text-[#7B2E68] underline-offset-4 hover:underline">
+                        Recuperar senha local
+                      </Link>
+                    </div>
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Entrando..." : "Entrar"}

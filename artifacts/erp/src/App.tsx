@@ -25,6 +25,8 @@ import PricingTechnicalSheetsPage from "@/pages/pricing-technical-sheets";
 import PricingGeneralCostsPage from "@/pages/pricing-general-costs";
 import PricingSimulatorPage from "@/pages/pricing-simulator";
 import Login from "@/pages/login";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import UsersPage from "@/pages/users";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
@@ -91,6 +93,8 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
+      <Route path="/esqueci-senha" component={import.meta.env.DEV ? ForgotPassword : Login} />
+      <Route path="/redefinir-senha" component={import.meta.env.DEV ? ResetPassword : Login} />
       <Route path="/cardapio" component={StoreRouter} />
       <Route path="/cardapio/:rest*" component={StoreRouter} />
       <Route component={AdminRouter} />

@@ -1,13 +1,50 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { randomBytes, createHash } from "node:crypto";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod/v4";
-import { db, permissionsTable, rolePermissionsTable, rolesTable, usersTable } from "@workspace/db";
+import { db, passwordResetTokensTable, permissionsTable, rolePermissionsTable, rolesTable, usersTable } from "@workspace/db";
 import { getAuthUser, requireAuth, ROLE_LABELS, ROLE_PERMISSIONS, signAuthToken } from "../lib/auth";
 import { createRateLimit } from "../lib/security";
 
 const router: IRouter = Router();
 const loginRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const passwordResetRequestRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, max: 3 });
+const passwordResetCompleteRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 8 });
+const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+const PasswordResetRequestBody = z.object({
+  email: z.string().trim().email("Email inválido").max(254).transform((value) => value.toLowerCase()),
+});
+
+const PasswordResetCompleteBody = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/i, "Link inválido ou expirado"),
+  password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres").max(128),
+});
+
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function requireLocalPasswordReset(req: Request, res: Response, next: NextFunction) {
+  const remoteAddress = req.socket.remoteAddress?.replace(/^::ffff:/, "");
+  const isLoopback = remoteAddress === "127.0.0.1" || remoteAddress === "::1";
+  const localPort = process.env.LOCAL_APP_PORT || "5173";
+  const localOrigins = new Set([
+    `http://localhost:${localPort}`,
+    `http://127.0.0.1:${localPort}`,
+  ]);
+  const isLocalRequest = process.env.NODE_ENV === "development"
+    && !process.env.VERCEL
+    && isLoopback
+    && localOrigins.has(req.get("origin") ?? "");
+
+  if (!isLocalRequest) {
+    res.status(404).json({ error: "A recuperação de senha está disponível somente no painel local." });
+    return;
+  }
+
+  next();
+}
 
 const LoginBody = z.object({
   email: z.string().trim().email("Email inválido").transform((value) => value.toLowerCase()),
@@ -108,6 +145,66 @@ router.post("/auth/login", loginRateLimit, async (req, res): Promise<void> => {
   const authUser = await getAuthUser(user.id);
   if (!authUser) { res.status(401).json({ error: "Usuario inativo" }); return; }
   res.json({ token: signAuthToken(authUser), user: authUser });
+});
+
+router.post("/auth/password-reset/local/request", requireLocalPasswordReset, passwordResetRequestRateLimit, async (req, res): Promise<void> => {
+  const parsed = PasswordResetRequestBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Email inválido" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, parsed.data.email));
+  if (!user || !user.active) {
+    res.status(404).json({ error: "Não encontramos um usuário ativo com esse e-mail." });
+    return;
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const tokenHash = hashResetToken(token);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id));
+  await db.insert(passwordResetTokensTable).values({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  res.json({ token });
+});
+
+router.post("/auth/password-reset/local/complete", requireLocalPasswordReset, passwordResetCompleteRateLimit, async (req, res): Promise<void> => {
+  const parsed = PasswordResetCompleteBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }); return; }
+
+  const tokenHash = hashResetToken(parsed.data.token);
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  const now = new Date();
+
+  const completed = await db.transaction(async (tx) => {
+    const [reset] = await tx.select().from(passwordResetTokensTable)
+      .where(and(
+        eq(passwordResetTokensTable.tokenHash, tokenHash),
+        isNull(passwordResetTokensTable.usedAt),
+        gt(passwordResetTokensTable.expiresAt, now),
+      ))
+      .for("update")
+      .limit(1);
+    if (!reset) return false;
+
+    const [claimed] = await tx.update(passwordResetTokensTable)
+      .set({ usedAt: now })
+      .where(and(eq(passwordResetTokensTable.id, reset.id), isNull(passwordResetTokensTable.usedAt)))
+      .returning({ id: passwordResetTokensTable.id });
+    if (!claimed) return false;
+
+    await tx.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, reset.userId));
+    await tx.update(passwordResetTokensTable).set({ usedAt: now }).where(and(
+      eq(passwordResetTokensTable.userId, reset.userId),
+      isNull(passwordResetTokensTable.usedAt),
+    ));
+    return true;
+  });
+
+  if (!completed) { res.status(400).json({ error: "Este link é inválido ou expirou. Solicite uma nova redefinição." }); return; }
+  res.json({ message: "Senha alterada com sucesso. Faça login com a nova senha." });
 });
 
 router.get("/auth/me", requireAuth, async (req, res): Promise<void> => {

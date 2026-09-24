@@ -15,8 +15,9 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 if (process.env.NODE_ENV !== "production") {
-  allowedOrigins.add("http://localhost:5173");
-  allowedOrigins.add("http://127.0.0.1:5173");
+  const localPort = process.env.LOCAL_APP_PORT || "5173";
+  allowedOrigins.add(`http://localhost:${localPort}`);
+  allowedOrigins.add(`http://127.0.0.1:${localPort}`);
   allowedOrigins.add("http://localhost:3000");
   allowedOrigins.add("http://127.0.0.1:3000");
 }
