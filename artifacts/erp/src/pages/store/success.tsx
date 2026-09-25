@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft, BellRing, CheckCircle, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ type PublicSettings = {
   whatsappNumber: string;
   pixKey: string;
 };
+
+const customerNotificationsEnabledStorage = "ra-customer-notifications-enabled";
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
@@ -29,9 +31,13 @@ export default function StoreSuccess() {
     ? `ra-order-notifications-enabled:${numericOrderId}`
     : null;
   const [notificationsEnabled, setNotificationsEnabled] = useState(() =>
-    Boolean(notificationPreferenceKey && localStorage.getItem(notificationPreferenceKey) === "true")
+    Boolean(
+      localStorage.getItem(customerNotificationsEnabledStorage) === "true"
+      || (notificationPreferenceKey && localStorage.getItem(notificationPreferenceKey) === "true"),
+    )
   );
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const syncedOrderIdRef = useRef<number | null>(null);
   const payment = params.get("payment");
   const method = params.get("method");
   const paymentMethod = method === "pix" || method === "cash" || method === "debit_card" || method === "credit_card" ? method : null;
@@ -46,13 +52,47 @@ export default function StoreSuccess() {
   const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}` : undefined;
   const paymentMethodLabel = paymentMethod === "pix" ? "Pix" : paymentMethod === "cash" ? "Dinheiro" : paymentMethod === "debit_card" ? "Cartão de débito" : paymentMethod === "credit_card" ? "Cartão de crédito" : "a combinar";
 
+  useEffect(() => {
+    if (
+      !notificationsEnabled
+      || !notificationKeyStorage
+      || !notificationPreferenceKey
+      || !Number.isSafeInteger(numericOrderId)
+      || numericOrderId <= 0
+      || syncedOrderIdRef.current === numericOrderId
+      || !sessionStorage.getItem(notificationKeyStorage)
+    ) {
+      return;
+    }
+
+    const customerNotificationKey = sessionStorage.getItem(notificationKeyStorage);
+    if (!customerNotificationKey) return;
+
+    syncedOrderIdRef.current = numericOrderId;
+    setNotificationsLoading(true);
+    void registerOrderPush()
+      .then((token) => apiRequest<{ subscribed: boolean; serverConfigured: boolean }>("/api/customer-order-notifications", {
+        method: "POST",
+        body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey, token }),
+      }))
+      .then(() => {
+        localStorage.setItem(customerNotificationsEnabledStorage, "true");
+        localStorage.setItem(notificationPreferenceKey, "true");
+      })
+      .catch(() => {
+        // A temporary token/network failure must not make the customer activate again.
+        syncedOrderIdRef.current = null;
+      })
+      .finally(() => setNotificationsLoading(false));
+  }, [notificationsEnabled, notificationKeyStorage, notificationPreferenceKey, numericOrderId]);
+
   async function copyPix() {
     if (!pixKey) return;
     await navigator.clipboard.writeText(pixKey);
     toast({ title: "Chave Pix copiada" });
   }
 
-  async function toggleOrderNotifications() {
+  async function activateOrderNotifications() {
     if (!notificationKeyStorage || !notificationPreferenceKey) return;
     const customerNotificationKey = sessionStorage.getItem(notificationKeyStorage);
     if (!customerNotificationKey) {
@@ -61,31 +101,23 @@ export default function StoreSuccess() {
     }
 
     setNotificationsLoading(true);
+    syncedOrderIdRef.current = numericOrderId;
     try {
-      if (notificationsEnabled) {
-        await apiRequest<void>("/api/customer-order-notifications", {
-          method: "DELETE",
-          body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey }),
-        });
-        localStorage.removeItem(notificationPreferenceKey);
-        setNotificationsEnabled(false);
-        toast({ title: "Avisos desativados para este pedido" });
-        return;
-      }
-
       const token = await registerOrderPush();
       const result = await apiRequest<{ subscribed: boolean; serverConfigured: boolean }>("/api/customer-order-notifications", {
         method: "POST",
         body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey, token }),
       });
+      localStorage.setItem(customerNotificationsEnabledStorage, "true");
       localStorage.setItem(notificationPreferenceKey, "true");
       setNotificationsEnabled(true);
       toast(result.serverConfigured
         ? { title: "Avisos do pedido ativados", description: "Você receberá atualizações quando o pedido mudar de etapa." }
         : { title: "Navegador autorizado", description: "Os avisos foram ativados neste aparelho. A entrega automática depende da configuração do servidor." });
     } catch (error) {
+      syncedOrderIdRef.current = null;
       toast({
-        title: notificationsEnabled ? "Não foi possível desativar os avisos" : "Não foi possível ativar os avisos",
+        title: "Não foi possível ativar os avisos",
         description: getPushRegistrationError(error).message,
         variant: "destructive",
       });
@@ -113,17 +145,25 @@ export default function StoreSuccess() {
 
       {notificationKeyStorage && sessionStorage.getItem(notificationKeyStorage) && (
         <div className="mb-6 rounded-lg border border-[#7B2E68]/15 bg-white p-4 text-left">
-          <p className="text-sm text-muted-foreground">Receba avisos sobre pagamento, preparo e entrega deste pedido.</p>
-          <Button
-            type="button"
-            variant={notificationsEnabled ? "outline" : "default"}
-            className="mt-3 w-full gap-2"
-            onClick={() => void toggleOrderNotifications()}
-            disabled={notificationsLoading}
-          >
-            <BellRing className="h-4 w-4" aria-hidden="true" />
-            {notificationsLoading ? "Atualizando..." : notificationsEnabled ? "Desativar avisos deste pedido" : "Ativar avisos deste pedido"}
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            {notificationsEnabled
+              ? "Avisos ativados neste aparelho. Nos próximos pedidos, a ativação será mantida automaticamente."
+              : "Receba avisos sobre pagamento, preparo e entrega deste pedido."}
+          </p>
+          {!notificationsEnabled && (
+            <Button
+              type="button"
+              className="mt-3 w-full gap-2"
+              onClick={() => void activateOrderNotifications()}
+              disabled={notificationsLoading}
+            >
+              <BellRing className="h-4 w-4" aria-hidden="true" />
+              {notificationsLoading ? "Ativando..." : "Ativar avisos deste pedido"}
+            </Button>
+          )}
+          {notificationsEnabled && notificationsLoading && (
+            <p className="mt-3 text-xs text-muted-foreground">Sincronizando os avisos deste pedido...</p>
+          )}
         </div>
       )}
 
