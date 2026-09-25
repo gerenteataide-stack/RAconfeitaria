@@ -16,6 +16,7 @@ import {
   Truck,
   Volume2,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import {
   getListOrdersQueryKey,
@@ -69,21 +70,28 @@ const KANBAN_COLUMNS = [
   { id: "cancelled", label: "Cancelados" },
 ];
 
-function nextActions(order: Order): Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> {
-  const actions: Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> = [];
-  const cardPaidAtDelivery = order.deliveryType === "delivery"
-    && (order.paymentMethod === "credit_card" || order.paymentMethod === "debit_card")
+type OrderCardAction = {
+  label: string;
+  status: OrderStatusUpdateStatus;
+  icon: LucideIcon;
+  variant?: "default" | "outline" | "destructive";
+};
+
+function nextActions(order: Order): OrderCardAction[] {
+  const actions: OrderCardAction[] = [];
+  const paymentAtDelivery = order.deliveryType === "delivery"
+    && (order.paymentMethod === "cash" || order.paymentMethod === "credit_card" || order.paymentMethod === "debit_card")
     && order.paymentStatus !== "paid";
   if (order.status === "new" || order.status === "awaiting_payment") {
-    actions.push(cardPaidAtDelivery
-      ? { label: "Iniciar produção", status: "production" }
-      : { label: "Marcar pago", status: "paid" });
+    actions.push(paymentAtDelivery
+      ? { label: "Iniciar produção", status: "production", icon: Clock }
+      : { label: "Marcar pago", status: "paid", icon: Check });
   }
-  if (order.status === "paid") actions.push({ label: "Produção", status: "production" });
-  if (order.status === "production") actions.push({ label: "Pronto", status: "ready" });
-  if (order.status === "ready" && order.deliveryType === "delivery") actions.push({ label: "Saiu", status: "out_for_delivery", variant: "outline" });
-  if (order.status === "ready" || order.status === "out_for_delivery") actions.push({ label: "Entregue", status: "delivered" });
-  if (order.status !== "cancelled" && order.status !== "delivered") actions.push({ label: "Cancelar", status: "cancelled", variant: "destructive" });
+  if (order.status === "paid") actions.push({ label: "Produção", status: "production", icon: Clock });
+  if (order.status === "production") actions.push({ label: "Pronto", status: "ready", icon: Package });
+  if (order.status === "ready" && order.deliveryType === "delivery") actions.push({ label: "Saiu para entrega", status: "out_for_delivery", icon: Truck, variant: "outline" });
+  if (order.status === "ready" || order.status === "out_for_delivery") actions.push({ label: "Entregue", status: "delivered", icon: Check });
+  if (order.status !== "cancelled" && order.status !== "delivered") actions.push({ label: "Cancelar", status: "cancelled", icon: X, variant: "destructive" });
   return actions;
 }
 
@@ -315,7 +323,7 @@ export default function Orders() {
       )}
 
       <div className="flex-1 overflow-x-auto pb-4">
-        <div className="flex h-full min-w-max gap-4">
+        <div className="flex h-full min-w-max gap-3">
           {isLoading ? (
             <div className="flex h-40 w-full items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
@@ -324,18 +332,18 @@ export default function Orders() {
             KANBAN_COLUMNS.map((column) => {
               const columnOrders = getColumnOrders(column.id);
               return (
-                <div key={column.id} className="flex w-80 flex-col overflow-hidden rounded-xl border border-border bg-muted/50">
-                  <div className="flex items-center justify-between border-b border-border bg-card p-3">
+                <div key={column.id} className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-muted/50 lg:w-[17rem] xl:w-[18rem]">
+                  <div className="flex items-center justify-between border-b border-border bg-card px-3 py-2">
                     <h3 className="text-sm font-semibold text-foreground">{column.label}</h3>
                     <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs font-normal">
                       {columnOrders.length}
                     </Badge>
                   </div>
-                  <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+                  <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
                     {columnOrders.map((order) => {
                       const config = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG];
                       return (
-                        <div key={order.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/50">
+                        <div key={order.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 shadow-sm transition-colors hover:border-primary/50 lg:gap-1.5 lg:p-2.5">
                           <div className="flex items-start justify-between">
                             <span className="font-mono text-xs text-muted-foreground">#{order.id.toString().padStart(4, "0")}</span>
                             <Badge variant="outline" className={`border px-1.5 py-0 text-[10px] ${config?.color || ""}`}>
@@ -345,20 +353,31 @@ export default function Orders() {
 
                           <div>
                             <h4 className="line-clamp-1 text-sm font-medium text-foreground">{order.customerName || "Cliente não informado"}</h4>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {order.deliveryDate ? (
-                                <>Data: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}{order.deliveryTime && ` às ${order.deliveryTime}`}</>
-                              ) : "Data de entrega a combinar"}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Pagamento: {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod : "A combinar"}
-                            </p>
-                            <p className={`mt-1 text-xs font-medium ${order.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
-                              {order.paymentStatus === "paid" ? "Pagamento recebido" : "Pagamento pendente"}
+                            {order.deliveryDate && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {order.deliveryType === "delivery" ? "Entrega" : "Retirada"}: {format(new Date(order.deliveryDate), "dd 'de' MMM", { locale: ptBR })}{order.deliveryTime && ` às ${order.deliveryTime}`}
+                              </p>
+                            )}
+                            <div className="mt-1.5 space-y-0.5 border-l-2 border-primary/40 pl-2">
+                              {order.items?.length ? order.items.map((item) => (
+                                <div key={item.id}>
+                                  <p className="break-words text-[11px] leading-snug font-medium text-foreground">{item.quantity}x {item.productName}</p>
+                                  {item.notes && <p className="text-[10px] leading-snug text-muted-foreground">{item.notes}</p>}
+                                </div>
+                              )) : (
+                                <p className="text-[11px] text-muted-foreground">Nenhum produto informado</p>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod : "A combinar"}
+                              <span aria-hidden="true"> · </span>
+                              <span className={order.paymentStatus === "paid" ? "font-medium text-emerald-700" : "font-medium text-amber-700"}>
+                                {order.paymentStatus === "paid" ? "Recebido" : "Pendente"}
+                              </span>
                             </p>
                           </div>
 
-                          <div className="mt-1 flex items-center justify-between border-t border-border pt-3">
+                          <div className="flex items-center justify-between border-t border-border pt-2">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               {order.deliveryType === "delivery" ? <Truck className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
                               {order.deliveryType === "delivery" ? "Entrega" : "Retirada"}
@@ -366,7 +385,7 @@ export default function Orders() {
                             <span className="text-sm font-semibold text-primary">{formatCurrency(order.total)}</span>
                           </div>
 
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {nextActions(order).map((action) => (
                               <Button
                                 key={action.status}
@@ -374,9 +393,12 @@ export default function Orders() {
                                 variant={action.variant === "destructive" ? "destructive" : action.variant ?? "outline"}
                                 onClick={() => changeStatus(order, action.status)}
                                 disabled={updateStatus.isPending}
-                                className="h-8 text-xs"
+                                title={action.label}
+                                aria-label={action.label}
+                                className="h-8 gap-1.5 px-2 text-[11px] lg:h-7 lg:w-7 lg:gap-0 lg:px-0"
                               >
-                                {action.label}
+                                <action.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <span className="lg:sr-only">{action.label}</span>
                               </Button>
                             ))}
                             {order.status === "delivered" && order.paymentStatus !== "paid" && (
@@ -384,9 +406,12 @@ export default function Orders() {
                                 size="sm"
                                 onClick={() => void confirmOrderPayment(order)}
                                 disabled={paymentBusyId === order.id}
-                                className="h-8 text-xs"
+                                title="Confirmar pagamento recebido"
+                                aria-label="Confirmar pagamento recebido"
+                                className="h-8 gap-1.5 px-2 text-[11px] lg:h-7 lg:w-7 lg:px-0"
                               >
-                                {paymentBusyId === order.id ? "Confirmando..." : "Confirmar pagamento"}
+                                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <span className="lg:sr-only">{paymentBusyId === order.id ? "Confirmando..." : "Confirmar pagamento"}</span>
                               </Button>
                             )}
                           </div>

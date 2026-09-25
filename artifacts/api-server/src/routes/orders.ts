@@ -232,10 +232,10 @@ router.patch("/orders/:id/status", requireAuth, requirePermission("orders"), asy
     .from(ordersTable).where(eq(ordersTable.id, params.data.id));
   if (!existing) { res.status(404).json({ error: "Order not found" }); return; }
 
-  const cardPaidAtDelivery = existing.deliveryType === "delivery"
-    && (existing.paymentMethod === "credit_card" || existing.paymentMethod === "debit_card");
-  if (parsed.data.status === "paid" && cardPaidAtDelivery) {
-    res.status(409).json({ error: "Pedidos no cartão para entrega só devem ser marcados como pagos após a confirmação do recebimento." });
+  const paymentAtDelivery = existing.deliveryType === "delivery"
+    && (existing.paymentMethod === "cash" || existing.paymentMethod === "credit_card" || existing.paymentMethod === "debit_card");
+  if (parsed.data.status === "paid" && paymentAtDelivery) {
+    res.status(409).json({ error: "Pedidos para entrega em dinheiro ou cartão só devem ser marcados como pagos após a confirmação do recebimento." });
     return;
   }
 
