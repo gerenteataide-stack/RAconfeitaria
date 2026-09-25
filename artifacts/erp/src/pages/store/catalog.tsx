@@ -204,7 +204,7 @@ export default function StoreCatalog() {
                 <div key={product.id} id={`produto-${product.id}`}
                   className="scroll-mt-24 bg-white rounded-2xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
                   {/* Product image */}
-                  <div className="h-44 flex items-center justify-center relative overflow-hidden"
+                  <div className="relative aspect-[4/5] w-full overflow-hidden"
                     style={{ background: "linear-gradient(135deg, #FFF0F8 0%, #F8F0FF 100%)" }}>
                     {product.imageUrl ? (
                       <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />

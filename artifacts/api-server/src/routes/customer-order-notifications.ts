@@ -34,11 +34,6 @@ async function findOrderForKey(orderId: number, key: string) {
 router.post("/customer-order-notifications", customerNotificationRateLimit, async (req, res): Promise<void> => {
   const parsed = subscribeBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Dados inválidos para ativar avisos do pedido." }); return; }
-  if (!isFirebaseAdminConfigured()) {
-    res.status(503).json({ error: "As notificações estão temporariamente indisponíveis." });
-    return;
-  }
-
   const { orderId, customerNotificationKey, token } = parsed.data;
   const order = await findOrderForKey(orderId, customerNotificationKey);
   if (!order) { res.status(404).json({ error: "Não foi possível validar a inscrição deste pedido." }); return; }
@@ -57,7 +52,7 @@ router.post("/customer-order-notifications", customerNotificationRateLimit, asyn
     logger.warn({ orderId, errorCode: getFirebaseErrorCode(error) }, "Initial customer order push was not sent");
   }
 
-  res.status(201).json({ subscribed: true });
+  res.status(201).json({ subscribed: true, serverConfigured: isFirebaseAdminConfigured() });
 });
 
 router.delete("/customer-order-notifications", customerNotificationRateLimit, async (req, res): Promise<void> => {

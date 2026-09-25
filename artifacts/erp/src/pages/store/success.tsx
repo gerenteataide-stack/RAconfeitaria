@@ -74,13 +74,15 @@ export default function StoreSuccess() {
       }
 
       const token = await registerOrderPush();
-      await apiRequest<void>("/api/customer-order-notifications", {
+      const result = await apiRequest<{ subscribed: boolean; serverConfigured: boolean }>("/api/customer-order-notifications", {
         method: "POST",
         body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey, token }),
       });
       localStorage.setItem(notificationPreferenceKey, "true");
       setNotificationsEnabled(true);
-      toast({ title: "Avisos do pedido ativados", description: "Você receberá atualizações quando o pedido mudar de etapa." });
+      toast(result.serverConfigured
+        ? { title: "Avisos do pedido ativados", description: "Você receberá atualizações quando o pedido mudar de etapa." }
+        : { title: "Navegador autorizado", description: "Os avisos foram ativados neste aparelho. A entrega automática depende da configuração do servidor." });
     } catch (error) {
       toast({
         title: notificationsEnabled ? "Não foi possível desativar os avisos" : "Não foi possível ativar os avisos",
