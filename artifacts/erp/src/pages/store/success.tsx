@@ -5,7 +5,8 @@ import { ArrowLeft, BellRing, CheckCircle, Copy, MessageCircle } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { getPushRegistrationError, registerOrderPush } from "@/lib/firebase-push";
+import { getPushEnvironment, getPushRegistrationError, registerOrderPush } from "@/lib/firebase-push";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 type PublicSettings = {
   whatsappNumber: string;
@@ -37,6 +38,7 @@ export default function StoreSuccess() {
     )
   );
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const pushEnvironment = getPushEnvironment();
   const syncedOrderIdRef = useRef<number | null>(null);
   const payment = params.get("payment");
   const method = params.get("method");
@@ -150,7 +152,8 @@ export default function StoreSuccess() {
               ? "Avisos ativados neste aparelho. Nos próximos pedidos, a ativação será mantida automaticamente."
               : "Receba avisos sobre pagamento, preparo e entrega deste pedido."}
           </p>
-          {!notificationsEnabled && (
+          {pushEnvironment.requiresHomeScreenApp && <PwaInstallPrompt />}
+          {!notificationsEnabled && !pushEnvironment.requiresHomeScreenApp && (
             <Button
               type="button"
               className="mt-3 w-full gap-2"

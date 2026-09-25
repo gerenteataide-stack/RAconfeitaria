@@ -2,6 +2,7 @@
 import { useLocation } from "wouter";
 import { ShoppingCart, Plus, Minus, Cake, Star, Search } from "lucide-react";
 import { useListProducts } from "@workspace/api-client-react";
+import type { Product } from "@workspace/api-client-react";
 import { useListCategories } from "@workspace/api-client-react";
 import { useCart } from "@/contexts/cart";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,16 @@ import { Separator } from "@/components/ui/separator";
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+function getAvailabilityStatus(product: Product): Product["availabilityStatus"] {
+  return product.availabilityStatus ?? (product.available ? "available" : "unavailable");
+}
+
+const AVAILABILITY_LABELS: Record<Product["availabilityStatus"], string> = {
+  available: "Adicionar ao carrinho",
+  unavailable: "Indisponível",
+  sold_out: "Esgotado",
+};
 
 export default function StoreCatalog() {
   const [, navigate] = useLocation();
@@ -191,6 +202,7 @@ export default function StoreCatalog() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => {
               const inCart = cartInCart(product.id);
+              const availabilityStatus = getAvailabilityStatus(product);
               return (
                 <div key={product.id} id={`produto-${product.id}`}
                   className="scroll-mt-24 flex flex-col overflow-hidden rounded-xl border border-pink-100 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -215,9 +227,9 @@ export default function StoreCatalog() {
                         </Badge>
                       </div>
                     )}
-                    {!product.available && (
-                      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 w-[145%] -translate-x-1/2 -translate-y-1/2 -rotate-12 bg-red-600 py-2 text-center text-sm font-bold uppercase tracking-wide text-white shadow-lg ring-1 ring-red-700/30">
-                        Esgotado
+                    {availabilityStatus !== "available" && (
+                      <div className={`pointer-events-none absolute left-1/2 top-1/2 z-20 w-[145%] -translate-x-1/2 -translate-y-1/2 -rotate-12 py-2 text-center text-sm font-bold uppercase tracking-wide text-white shadow-lg ring-1 ${availabilityStatus === "sold_out" ? "bg-red-600 ring-red-700/30" : "bg-gray-600 ring-gray-700/30"}`}>
+                        {AVAILABILITY_LABELS[availabilityStatus]}
                       </div>
                     )}
                   </div>
@@ -253,10 +265,10 @@ export default function StoreCatalog() {
                       className="w-full mt-3 text-sm gap-2"
                       style={{ backgroundColor: "#7B2E68" }}
                       onClick={() => handleAdd(product)}
-                      disabled={!product.available}
+                      disabled={availabilityStatus !== "available"}
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
-                      {product.available ? "Adicionar ao carrinho" : "Esgotado"}
+                      {AVAILABILITY_LABELS[availabilityStatus]}
                     </Button>
                   </div>
                 </div>

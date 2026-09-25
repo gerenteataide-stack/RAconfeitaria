@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getIOSHomeScreenMessage, getPushEnvironment } from "@/lib/firebase-push";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -13,6 +14,7 @@ type PwaInstallPromptProps = {
 export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [iosNeedsHomeScreen, setIosNeedsHomeScreen] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia("(display-mode: standalone)").matches ||
@@ -21,6 +23,7 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
     if (standalone) {
       setInstalled(true);
     }
+    setIosNeedsHomeScreen(getPushEnvironment().requiresHomeScreenApp);
 
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
@@ -39,6 +42,19 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
+
+  if (iosNeedsHomeScreen) {
+    return (
+      <div className={compact
+        ? "mt-3 rounded-md border border-[#7A8B68]/30 bg-white p-2 text-[11px] leading-4 text-muted-foreground"
+        : "rounded-lg border border-[#7A8B68]/30 bg-white p-3 text-sm text-muted-foreground"}
+        role="note"
+      >
+        <p className="font-semibold text-[#46513C]">Ative os avisos no iPhone</p>
+        <p className="mt-1">{getIOSHomeScreenMessage()}</p>
+      </div>
+    );
+  }
 
   if (installed || !installEvent) return null;
 

@@ -13,6 +13,30 @@ const firebaseConfig = {
 
 const vapidKey = "BJSAnSH_owVpR38r1jK9Y3zg5ZFqfCKXFnv39VHFyr2msDWv8QuTMosD5S6wSge2By9Rcuv0wzQ8AnCoOF3xr6A";
 
+export type PushEnvironment = {
+  isIOS: boolean;
+  isStandalone: boolean;
+  requiresHomeScreenApp: boolean;
+};
+
+export function getPushEnvironment(): PushEnvironment {
+  if (typeof window === "undefined") {
+    return { isIOS: false, isStandalone: false, requiresHomeScreenApp: false };
+  }
+
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+    || Boolean(navigatorWithStandalone.standalone);
+
+  return { isIOS, isStandalone, requiresHomeScreenApp: isIOS && !isStandalone };
+}
+
+export function getIOSHomeScreenMessage(): string {
+  return "No iPhone, abra este site no Safari, toque em Compartilhar e escolha Adicionar à Tela de Início. Depois abra o ícone do app e ative os avisos novamente.";
+}
+
 function isRecoverableTokenError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
@@ -33,12 +57,23 @@ async function getBrowserMessaging() {
 }
 
 export async function registerOrderPush(): Promise<string> {
+  const environment = getPushEnvironment();
+  if (environment.requiresHomeScreenApp) {
+    throw new Error(getIOSHomeScreenMessage());
+  }
+
   if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
     throw new Error("Este navegador não oferece suporte a notificações push.");
   }
 
+  if (!window.isSecureContext) {
+    throw new Error("As notificações só funcionam em uma conexão HTTPS segura.");
+  }
+
   if (Notification.permission === "denied") {
-    throw new Error("As notificações estão bloqueadas. No Chrome, abra as configurações do site e permita notificações para tentar novamente.");
+    throw new Error(environment.isIOS
+      ? "As notificações estão bloqueadas. No iPhone, abra Ajustes > Notificações, selecione RA Confeitaria e permita os avisos."
+      : "As notificações estão bloqueadas. Abra as configurações do site e permita notificações para tentar novamente.");
   }
 
   // Start the permission prompt in the click handler before awaiting browser capability checks.

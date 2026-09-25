@@ -15,7 +15,6 @@ export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
 
-
 /**
  * @summary Executive KPI summary
  */
@@ -145,6 +144,7 @@ export const ListProductsResponseItem = zod.object({
   "cost": zod.number().nullish(),
   "imageUrl": zod.string().nullish(),
   "available": zod.boolean(),
+  "availabilityStatus": zod.enum(['available', 'unavailable', 'sold_out']),
   "unit": zod.string().nullish(),
   "minStock": zod.number().nullish(),
   "cmvPercent": zod.number().nullish(),
@@ -164,6 +164,7 @@ export const CreateProductBody = zod.object({
   "cost": zod.number().optional(),
   "imageUrl": zod.string().optional(),
   "available": zod.boolean().optional(),
+  "availabilityStatus": zod.enum(['available', 'unavailable', 'sold_out']).optional(),
   "unit": zod.string().optional(),
   "minStock": zod.number().optional()
 })
@@ -186,6 +187,7 @@ export const GetProductResponse = zod.object({
   "cost": zod.number().nullish(),
   "imageUrl": zod.string().nullish(),
   "available": zod.boolean(),
+  "availabilityStatus": zod.enum(['available', 'unavailable', 'sold_out']),
   "unit": zod.string().nullish(),
   "minStock": zod.number().nullish(),
   "cmvPercent": zod.number().nullish(),
@@ -208,6 +210,7 @@ export const UpdateProductBody = zod.object({
   "cost": zod.number().optional(),
   "imageUrl": zod.string().optional(),
   "available": zod.boolean().optional(),
+  "availabilityStatus": zod.enum(['available', 'unavailable', 'sold_out']).optional(),
   "unit": zod.string().optional(),
   "minStock": zod.number().optional()
 })
@@ -222,6 +225,7 @@ export const UpdateProductResponse = zod.object({
   "cost": zod.number().nullish(),
   "imageUrl": zod.string().nullish(),
   "available": zod.boolean(),
+  "availabilityStatus": zod.enum(['available', 'unavailable', 'sold_out']),
   "unit": zod.string().nullish(),
   "minStock": zod.number().nullish(),
   "cmvPercent": zod.number().nullish(),

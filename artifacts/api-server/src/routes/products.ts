@@ -33,6 +33,14 @@ const upload = multer({
 
 const router: IRouter = Router();
 
+type ProductAvailabilityStatus = "available" | "unavailable" | "sold_out";
+
+function getAvailabilityStatus(product: Record<string, unknown>): ProductAvailabilityStatus {
+  const status = product.availabilityStatus;
+  if (status === "available" || status === "unavailable" || status === "sold_out") return status;
+  return product.available === true ? "available" : "sold_out";
+}
+
 function hasCloudinaryConfig() {
   return Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
 }
@@ -93,6 +101,7 @@ function formatProduct(p: Record<string, unknown>, catName?: string | null) {
   const price = Number(p.price);
   const cost = p.cost ? Number(p.cost) : null;
   const cmvPercent = cost && price > 0 ? (cost / price) * 100 : null;
+  const availabilityStatus = getAvailabilityStatus(p);
   return {
     id: p.id,
     name: p.name,
@@ -102,7 +111,8 @@ function formatProduct(p: Record<string, unknown>, catName?: string | null) {
     price,
     cost,
     imageUrl: p.imageUrl ?? null,
-    available: p.available,
+    available: availabilityStatus === "available",
+    availabilityStatus,
     unit: p.unit ?? null,
     minStock: p.minStock ?? null,
     cmvPercent,
@@ -125,6 +135,7 @@ router.get("/products", async (req, res): Promise<void> => {
       cost: productsTable.cost,
       imageUrl: productsTable.imageUrl,
       available: productsTable.available,
+      availabilityStatus: productsTable.availabilityStatus,
       unit: productsTable.unit,
       minStock: productsTable.minStock,
       createdAt: productsTable.createdAt,
@@ -146,8 +157,11 @@ router.get("/products", async (req, res): Promise<void> => {
 router.post("/products", requireAuth, requirePermission("products"), async (req, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const availabilityStatus = parsed.data.availabilityStatus ?? (parsed.data.available === false ? "unavailable" : "available");
   const [p] = await db.insert(productsTable).values({
     ...parsed.data,
+    available: availabilityStatus === "available",
+    availabilityStatus,
     price: String(parsed.data.price),
     cost: parsed.data.cost !== undefined ? String(parsed.data.cost) : undefined,
   }).returning();
@@ -169,6 +183,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
       cost: productsTable.cost,
       imageUrl: productsTable.imageUrl,
       available: productsTable.available,
+      availabilityStatus: productsTable.availabilityStatus,
       unit: productsTable.unit,
       minStock: productsTable.minStock,
       createdAt: productsTable.createdAt,
@@ -190,6 +205,11 @@ router.patch("/products/:id", requireAuth, requirePermission("products"), async 
   const updateData: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.price !== undefined) updateData.price = String(parsed.data.price);
   if (parsed.data.cost !== undefined) updateData.cost = String(parsed.data.cost);
+  if (parsed.data.availabilityStatus !== undefined) {
+    updateData.available = parsed.data.availabilityStatus === "available";
+  } else if (parsed.data.available !== undefined) {
+    updateData.availabilityStatus = parsed.data.available ? "available" : "unavailable";
+  }
 
   const [p] = await db.update(productsTable).set(updateData).where(eq(productsTable.id, params.data.id)).returning();
   if (!p) { res.status(404).json({ error: "Product not found" }); return; }

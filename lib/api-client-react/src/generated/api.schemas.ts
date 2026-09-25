@@ -59,6 +59,15 @@ export interface CategoryUpdate {
   color?: string;
 }
 
+export type ProductAvailabilityStatus = typeof ProductAvailabilityStatus[keyof typeof ProductAvailabilityStatus];
+
+
+export const ProductAvailabilityStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+  sold_out: 'sold_out',
+} as const;
+
 export interface Product {
   id: number;
   name: string;
@@ -74,6 +83,7 @@ export interface Product {
   /** @nullable */
   imageUrl?: string | null;
   available: boolean;
+  availabilityStatus: ProductAvailabilityStatus;
   /** @nullable */
   unit?: string | null;
   /** @nullable */
@@ -83,6 +93,15 @@ export interface Product {
   createdAt: string;
 }
 
+export type ProductInputAvailabilityStatus = typeof ProductInputAvailabilityStatus[keyof typeof ProductInputAvailabilityStatus];
+
+
+export const ProductInputAvailabilityStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+  sold_out: 'sold_out',
+} as const;
+
 export interface ProductInput {
   name: string;
   description?: string;
@@ -91,9 +110,19 @@ export interface ProductInput {
   cost?: number;
   imageUrl?: string;
   available?: boolean;
+  availabilityStatus?: ProductInputAvailabilityStatus;
   unit?: string;
   minStock?: number;
 }
+
+export type ProductUpdateAvailabilityStatus = typeof ProductUpdateAvailabilityStatus[keyof typeof ProductUpdateAvailabilityStatus];
+
+
+export const ProductUpdateAvailabilityStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+  sold_out: 'sold_out',
+} as const;
 
 export interface ProductUpdate {
   name?: string;
@@ -103,6 +132,7 @@ export interface ProductUpdate {
   cost?: number;
   imageUrl?: string;
   available?: boolean;
+  availabilityStatus?: ProductUpdateAvailabilityStatus;
   unit?: string;
   minStock?: number;
 }

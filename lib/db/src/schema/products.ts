@@ -2,6 +2,9 @@ import { pgTable, serial, text, timestamp, integer, numeric, boolean } from "dri
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export const PRODUCT_AVAILABILITY_STATUSES = ["available", "unavailable", "sold_out"] as const;
+export type ProductAvailabilityStatus = (typeof PRODUCT_AVAILABILITY_STATUSES)[number];
+
 export const productsTable = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -11,6 +14,7 @@ export const productsTable = pgTable("products", {
   cost: numeric("cost", { precision: 10, scale: 2 }),
   imageUrl: text("image_url"),
   available: boolean("available").notNull().default(true),
+  availabilityStatus: text("availability_status", { enum: PRODUCT_AVAILABILITY_STATUSES }).notNull().default("available"),
   unit: text("unit").default("un"),
   minStock: integer("min_stock"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -5,6 +5,7 @@
  * Rochelle Ataide Confeitaria ERP API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProductAvailabilityStatus } from './productAvailabilityStatus';
 
 export interface Product {
   id: number;
@@ -21,6 +22,7 @@ export interface Product {
   /** @nullable */
   imageUrl?: string | null;
   available: boolean;
+  availabilityStatus: ProductAvailabilityStatus;
   /** @nullable */
   unit?: string | null;
   /** @nullable */

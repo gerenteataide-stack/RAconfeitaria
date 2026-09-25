@@ -89,10 +89,20 @@ interface ProductFormState {
   price: string;
   cost: string;
   unit: string;
-  available: boolean;
+  availabilityStatus: Product["availabilityStatus"];
 }
 
-const empty: ProductFormState = { name: "", description: "", categoryId: "", price: "", cost: "", unit: "un", available: true };
+const empty: ProductFormState = { name: "", description: "", categoryId: "", price: "", cost: "", unit: "un", availabilityStatus: "available" };
+
+const AVAILABILITY_LABELS: Record<Product["availabilityStatus"], string> = {
+  available: "Disponível",
+  unavailable: "Indisponível",
+  sold_out: "Esgotado",
+};
+
+function getAvailabilityStatus(product: Product): Product["availabilityStatus"] {
+  return product.availabilityStatus ?? (product.available ? "available" : "unavailable");
+}
 
 function productToForm(p: Product): ProductFormState {
   return {
@@ -102,7 +112,7 @@ function productToForm(p: Product): ProductFormState {
     price: String(p.price),
     cost: p.cost != null ? String(p.cost) : "",
     unit: p.unit ?? "un",
-    available: p.available,
+    availabilityStatus: getAvailabilityStatus(p),
   };
 }
 
@@ -153,7 +163,7 @@ export default function Products() {
       price: Number(form.price),
       cost: form.cost ? Number(form.cost) : undefined,
       unit: form.unit || undefined,
-      available: form.available,
+      availabilityStatus: form.availabilityStatus,
     };
     try {
       if (editProduct) {
@@ -197,9 +207,15 @@ export default function Products() {
     }
   }
 
-  async function handleToggleAvailable(p: Product) {
-    await updateProduct.mutateAsync({ id: p.id, data: { available: !p.available } });
-    await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  async function handleSetAvailabilityStatus(p: Product, availabilityStatus: Product["availabilityStatus"]) {
+    if (getAvailabilityStatus(p) === availabilityStatus) return;
+    try {
+      await updateProduct.mutateAsync({ id: p.id, data: { availabilityStatus } });
+      await qc.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      toast({ title: `Produto marcado como ${AVAILABILITY_LABELS[availabilityStatus].toLowerCase()}` });
+    } catch {
+      toast({ title: "Erro ao atualizar disponibilidade", variant: "destructive" });
+    }
   }
 
   const triggerUpload = useCallback((productId: number) => {
@@ -311,12 +327,13 @@ export default function Products() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {products.map((p) => {
             const isUploading = uploadingId === p.id;
+            const availabilityStatus = getAvailabilityStatus(p);
             return (
               <div key={p.id} className="bg-white rounded-xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 {/* Image area */}
-                <div className="group relative h-28 bg-[#FFF9FC] md:h-32">
+                <div className="group relative h-36 overflow-hidden bg-[#F6F0F3] md:h-40">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-contain p-1.5" />
+                    <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <ImageIcon className="w-10 h-10 opacity-20" style={{ color: "#7B2E68" }} />
@@ -338,10 +355,10 @@ export default function Products() {
                     )}
                     <span>{isUploading ? "Enviando…" : p.imageUrl ? "Trocar foto" : "Adicionar foto"}</span>
                   </button>
-                  {/* Available badge */}
+                  {/* Availability badge */}
                   <div className="absolute top-2 left-2">
-                    <Badge className={`text-xs ${p.available ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
-                      {p.available ? "Disponível" : "Indisponível"}
+                    <Badge className={`text-xs ${availabilityStatus === "available" ? "bg-green-100 text-green-700 border-green-200" : availabilityStatus === "sold_out" ? "bg-red-100 text-red-700 border-red-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                      {AVAILABILITY_LABELS[availabilityStatus]}
                     </Badge>
                   </div>
                 </div>
@@ -363,18 +380,46 @@ export default function Products() {
                     <span className="text-xs text-muted-foreground">{p.categoryName}</span>
                   )}
 
-                  <div className="flex items-center justify-between mt-auto pt-1 border-t border-pink-50">
-                    <div>
-                      <p className="font-bold text-sm" style={{ color: "#7B2E68" }}>{fmt(Number(p.price))}</p>
-                      {p.cmvPercent != null && (
-                        <p className={`text-xs font-medium ${cmvColor(p.cmvPercent)}`}>CMV {p.cmvPercent.toFixed(0)}%</p>
-                      )}
+                  <div className="mt-auto flex flex-col gap-2 border-t border-pink-50 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-sm" style={{ color: "#7B2E68" }}>{fmt(Number(p.price))}</p>
+                        {p.cmvPercent != null && (
+                          <p className={`text-xs font-medium ${cmvColor(p.cmvPercent)}`}>CMV {p.cmvPercent.toFixed(0)}%</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          aria-label={`Marcar ${p.name} como disponível`}
+                          checked={availabilityStatus === "available"}
+                          onCheckedChange={(checked) => void handleSetAvailabilityStatus(p, checked ? "available" : "unavailable")}
+                          className="scale-90"
+                        />
+                        <span className="text-xs text-muted-foreground">Disponível</span>
+                      </div>
                     </div>
-                    <Switch
-                      checked={p.available}
-                      onCheckedChange={() => handleToggleAvailable(p)}
-                      className="scale-90"
-                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={availabilityStatus === "unavailable" ? "secondary" : "outline"}
+                        className="h-8 flex-1 px-2 text-xs"
+                        onClick={() => void handleSetAvailabilityStatus(p, "unavailable")}
+                        disabled={updateProduct.isPending}
+                      >
+                        Indisponível
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={availabilityStatus === "sold_out" ? "destructive" : "outline"}
+                        className="h-8 flex-1 px-2 text-xs"
+                        onClick={() => void handleSetAvailabilityStatus(p, "sold_out")}
+                        disabled={updateProduct.isPending}
+                      >
+                        Esgotado
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -429,9 +474,18 @@ export default function Products() {
                 <Input id="prod-unit" value={form.unit} onChange={(e) => setField("unit", e.target.value)} className="mt-1" placeholder="un, kg, etc." />
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Switch id="prod-avail" checked={form.available} onCheckedChange={(v) => setField("available", v)} />
-              <Label htmlFor="prod-avail">Disponível no cardápio</Label>
+            <div>
+              <Label>Status no cardápio</Label>
+              <Select value={form.availabilityStatus} onValueChange={(v) => setField("availabilityStatus", v)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Disponível</SelectItem>
+                  <SelectItem value="unavailable">Indisponível</SelectItem>
+                  <SelectItem value="sold_out">Esgotado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

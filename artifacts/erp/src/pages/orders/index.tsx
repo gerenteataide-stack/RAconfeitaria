@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/auth";
 import { apiRequest } from "@/lib/api";
-import { getCurrentOrderPushToken, getPushRegistrationError, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
+import { getCurrentOrderPushToken, getPushEnvironment, getPushRegistrationError, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
 import { playOrderSound, unlockOrderSound } from "@/lib/order-sound";
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -103,6 +103,8 @@ export default function Orders() {
   const [orderSoundEnabled, setOrderSoundEnabled] = useState(() => localStorage.getItem("ra-order-sound-enabled") !== "false");
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("ra-order-push-enabled") === "true");
   const [pushBusy, setPushBusy] = useState(false);
+  const pushEnvironment = getPushEnvironment();
+  const pushBlockedUntilHomeScreen = pushEnvironment.requiresHomeScreenApp;
   const [paymentBusyId, setPaymentBusyId] = useState<number | null>(null);
   const orderSnapshotRef = useRef<{ date: string; ids: Set<number> | null }>({ date: selectedDate, ids: null });
   const orderParams = selectedDate ? { date: selectedDate } : undefined;
@@ -302,12 +304,17 @@ export default function Orders() {
         {(user?.role === "owner" || user?.role === "manager") && (
           <div className="flex items-center gap-2 px-1" title="Receber avisos de pedidos neste navegador">
             <BellRing className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <Switch aria-label="Ativar notificações de pedidos" checked={pushEnabled} onCheckedChange={toggleOrderPush} disabled={pushBusy} />
+            <Switch aria-label="Ativar notificações de pedidos" checked={pushBlockedUntilHomeScreen ? false : pushEnabled} onCheckedChange={toggleOrderPush} disabled={pushBusy || pushBlockedUntilHomeScreen} />
             <span className="text-sm text-muted-foreground">Notificações</span>
-            <Button type="button" variant="outline" size="sm" onClick={() => void testOrderPush()} disabled={pushBusy || !pushEnabled}>
+            <Button type="button" variant="outline" size="sm" onClick={() => void testOrderPush()} disabled={pushBusy || !pushEnabled || pushBlockedUntilHomeScreen}>
               Testar
             </Button>
           </div>
+        )}
+        {pushBlockedUntilHomeScreen && (
+          <p className="max-w-sm rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-4 text-amber-800">
+            No iPhone, instale o site na Tela de Início pelo Safari e abra o ícone do app. Só então o botão de notificações ficará disponível.
+          </p>
         )}
         <Button variant="ghost" size="sm" className="text-muted-foreground">
           <Filter className="mr-2 h-4 w-4" />

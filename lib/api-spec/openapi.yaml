@@ -1018,7 +1018,7 @@ components:
     # ─── PRODUCT ────────────────────────────────────────────────────────────
     Product:
       type: object
-      required: [id, name, price, available, createdAt]
+      required: [id, name, price, available, availabilityStatus, createdAt]
       properties:
         id:
           type: integer
@@ -1038,6 +1038,9 @@ components:
           type: ["string", "null"]
         available:
           type: boolean
+        availabilityStatus:
+          type: string
+          enum: [available, unavailable, sold_out]
         unit:
           type: ["string", "null"]
         minStock:
@@ -1065,6 +1068,9 @@ components:
           type: string
         available:
           type: boolean
+        availabilityStatus:
+          type: string
+          enum: [available, unavailable, sold_out]
         unit:
           type: string
         minStock:
@@ -1087,6 +1093,9 @@ components:
           type: string
         available:
           type: boolean
+        availabilityStatus:
+          type: string
+          enum: [available, unavailable, sold_out]
         unit:
           type: string
         minStock:
