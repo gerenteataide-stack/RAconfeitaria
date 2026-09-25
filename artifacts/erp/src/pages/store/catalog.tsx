@@ -1,6 +1,5 @@
 ﻿import { useState } from "react";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
 import { ShoppingCart, Plus, Minus, Cake, Star, Search } from "lucide-react";
 import { useListProducts } from "@workspace/api-client-react";
 import { useListCategories } from "@workspace/api-client-react";
@@ -31,14 +30,6 @@ export default function StoreCatalog() {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchesCat && matchesSearch;
   });
-
-  useEffect(() => {
-    if (!allProducts.length || !window.location.hash) return;
-    const targetId = decodeURIComponent(window.location.hash.slice(1));
-    requestAnimationFrame(() => {
-      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-  }, [allProducts.length]);
 
   function getQty(productId: number) {
     return quantities[productId] ?? 1;
@@ -197,14 +188,14 @@ export default function StoreCatalog() {
             <p>Nenhum produto encontrado.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => {
               const inCart = cartInCart(product.id);
               return (
                 <div key={product.id} id={`produto-${product.id}`}
-                  className="scroll-mt-24 bg-white rounded-2xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                  className="scroll-mt-24 flex flex-col overflow-hidden rounded-xl border border-pink-100 bg-white shadow-sm transition-shadow hover:shadow-md">
                   {/* Product image */}
-                  <div className="relative aspect-[4/5] w-full overflow-hidden"
+                  <div className="relative aspect-[4/3] w-full overflow-hidden"
                     style={{ background: "linear-gradient(135deg, #FFF0F8 0%, #F8F0FF 100%)" }}>
                     {product.imageUrl ? (
                       <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
@@ -231,14 +222,14 @@ export default function StoreCatalog() {
                     )}
                   </div>
 
-                  <div className="p-4 flex flex-col flex-1">
-                    <h3 className="font-semibold text-base mb-1 leading-tight">{product.name}</h3>
+                  <div className="flex flex-1 flex-col p-3 sm:p-4">
+                    <h3 className="mb-1 text-base font-semibold leading-tight">{product.name}</h3>
                     {product.description && (
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-2 flex-1">{product.description}</p>
                     )}
 
                     <div className="flex items-center justify-between mt-auto pt-2">
-                      <span className="text-xl font-bold" style={{ color: "#7B2E68" }}>
+                      <span className="text-lg font-bold sm:text-xl" style={{ color: "#7B2E68" }}>
                         {fmt(Number(product.price))}
                       </span>
                       <div className="flex items-center gap-1">

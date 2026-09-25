@@ -196,7 +196,7 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
+      <main data-route-scroll className="flex min-w-0 flex-1 flex-col overflow-y-auto p-4 md:p-6">
         <div className="mb-4 flex items-center gap-3 md:hidden">
           <SidebarTrigger />
           <div>

@@ -2,6 +2,20 @@
   "installCommand": "corepack enable && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm run typecheck:libs && pnpm --dir artifacts/api-server run typecheck && pnpm --dir artifacts/erp run typecheck && pnpm --dir artifacts/api-server run build && pnpm --dir artifacts/erp run build",
   "outputDirectory": "artifacts/erp/dist/public",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "routes": [
     {
       "src": "/api/(.*)",

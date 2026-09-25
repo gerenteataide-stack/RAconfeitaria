@@ -1,7 +1,7 @@
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js");
 
-const CACHE_NAME = "ra-confeitaria-v2";
+const CACHE_NAME = "ra-confeitaria-v3";
 const APP_SHELL = ["/", "/cardapio", "/manifest.webmanifest", "/logo.png"];
 
 firebase.initializeApp({
@@ -15,6 +15,11 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 messaging.onBackgroundMessage((payload) => {
   const title = payload.data?.title || "Novo pedido recebido";
   return self.registration.showNotification(title, {

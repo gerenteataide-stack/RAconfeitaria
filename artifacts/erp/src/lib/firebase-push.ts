@@ -37,11 +37,24 @@ export async function registerOrderPush(): Promise<string> {
   if (permission !== "granted") throw new Error("Permita notificações para receber avisos de pedidos.");
   if (!supported) throw new Error("Este navegador não oferece suporte a notificações push. Abra o app no Chrome atualizado.");
 
-  await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await navigator.serviceWorker.register("/sw.js", {
+    scope: "/",
+    updateViaCache: "none",
+  });
+  await registration.update();
+  const activeRegistration = await navigator.serviceWorker.ready;
   const messaging = await getBrowserMessaging();
   if (!messaging) throw new Error("Não foi possível iniciar as notificações neste navegador.");
-  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+  let token: string;
+  try {
+    token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: activeRegistration });
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+    if (code !== "messaging/token-subscribe-failed") throw error;
+    await deleteToken(messaging).catch(() => undefined);
+    await activeRegistration.update();
+    token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: activeRegistration });
+  }
   if (!token) throw new Error("O Firebase não gerou um token para este navegador.");
   return token;
 }
