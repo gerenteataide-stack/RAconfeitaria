@@ -43,6 +43,7 @@ import type {
   ListProductsParams,
   ListStockItemsParams,
   Order,
+  OrderCreated,
   OrderInput,
   OrderStatusUpdate,
   OrderUpdate,
@@ -1670,9 +1671,9 @@ export const getCreateOrderUrl = () => {
 /**
  * @summary Create a new order
  */
-export const createOrder = async (orderInput: OrderInput, options?: RequestInit): Promise<Order> => {
+export const createOrder = async (orderInput: OrderInput, options?: RequestInit): Promise<OrderCreated> => {
 
-  return customFetch<Order>(getCreateOrderUrl(),
+  return customFetch<OrderCreated>(getCreateOrderUrl(),
   {
     ...options,
     method: 'POST',

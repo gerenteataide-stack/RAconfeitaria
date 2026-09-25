@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, CheckCircle, Copy, MessageCircle } from "lucide-react";
+import { ArrowLeft, BellRing, CheckCircle, Copy, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { registerOrderPush } from "@/lib/firebase-push";
 
 type PublicSettings = {
   whatsappNumber: string;
@@ -19,6 +21,17 @@ export default function StoreSuccess() {
   const { toast } = useToast();
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get("id");
+  const numericOrderId = orderId ? Number(orderId) : NaN;
+  const notificationKeyStorage = Number.isSafeInteger(numericOrderId) && numericOrderId > 0
+    ? `ra-order-notification-key:${numericOrderId}`
+    : null;
+  const notificationPreferenceKey = Number.isSafeInteger(numericOrderId) && numericOrderId > 0
+    ? `ra-order-notifications-enabled:${numericOrderId}`
+    : null;
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() =>
+    Boolean(notificationPreferenceKey && localStorage.getItem(notificationPreferenceKey) === "true")
+  );
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const payment = params.get("payment");
   const method = params.get("method");
   const paymentMethod = method === "pix" || method === "cash" || method === "debit_card" || method === "credit_card" ? method : null;
@@ -39,6 +52,46 @@ export default function StoreSuccess() {
     toast({ title: "Chave Pix copiada" });
   }
 
+  async function toggleOrderNotifications() {
+    if (!notificationKeyStorage || !notificationPreferenceKey) return;
+    const customerNotificationKey = sessionStorage.getItem(notificationKeyStorage);
+    if (!customerNotificationKey) {
+      toast({ title: "Não foi possível validar este pedido", description: "Abra a confirmação no mesmo aparelho usado para fazer o pedido.", variant: "destructive" });
+      return;
+    }
+
+    setNotificationsLoading(true);
+    try {
+      if (notificationsEnabled) {
+        await apiRequest<void>("/api/customer-order-notifications", {
+          method: "DELETE",
+          body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey }),
+        });
+        localStorage.removeItem(notificationPreferenceKey);
+        setNotificationsEnabled(false);
+        toast({ title: "Avisos desativados para este pedido" });
+        return;
+      }
+
+      const token = await registerOrderPush();
+      await apiRequest<void>("/api/customer-order-notifications", {
+        method: "POST",
+        body: JSON.stringify({ orderId: numericOrderId, customerNotificationKey, token }),
+      });
+      localStorage.setItem(notificationPreferenceKey, "true");
+      setNotificationsEnabled(true);
+      toast({ title: "Avisos do pedido ativados", description: "Você receberá atualizações quando o pedido mudar de etapa." });
+    } catch (error) {
+      toast({
+        title: notificationsEnabled ? "Não foi possível desativar os avisos" : "Não foi possível ativar os avisos",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 py-20 text-center">
       <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: "#f0fdf4" }}>
@@ -54,6 +107,22 @@ export default function StoreSuccess() {
         <p className="mb-8 text-sm text-muted-foreground">
           Seu número de pedido é <strong className="text-foreground">#{orderId}</strong>
         </p>
+      )}
+
+      {notificationKeyStorage && sessionStorage.getItem(notificationKeyStorage) && (
+        <div className="mb-6 rounded-lg border border-[#7B2E68]/15 bg-white p-4 text-left">
+          <p className="text-sm text-muted-foreground">Receba avisos sobre pagamento, preparo e entrega deste pedido.</p>
+          <Button
+            type="button"
+            variant={notificationsEnabled ? "outline" : "default"}
+            className="mt-3 w-full gap-2"
+            onClick={() => void toggleOrderNotifications()}
+            disabled={notificationsLoading}
+          >
+            <BellRing className="h-4 w-4" aria-hidden="true" />
+            {notificationsLoading ? "Atualizando..." : notificationsEnabled ? "Desativar avisos deste pedido" : "Ativar avisos deste pedido"}
+          </Button>
+        </div>
       )}
 
       {paymentMethod === "pix" && pixKey && (

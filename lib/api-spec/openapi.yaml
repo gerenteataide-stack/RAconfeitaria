@@ -432,7 +432,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Order"
+                $ref: "#/components/schemas/OrderCreated"
 
   /orders/{id}:
     get:
@@ -1239,6 +1239,16 @@ components:
           type: string
         updatedAt:
           type: string
+
+    OrderCreated:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          required: [customerNotificationKey]
+          properties:
+            customerNotificationKey:
+              type: string
+              description: Chave aleatória entregue uma única vez para vincular avisos deste pedido ao aparelho do cliente.
 
     OrderItem:
       type: object

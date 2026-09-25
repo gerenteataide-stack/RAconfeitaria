@@ -250,6 +250,11 @@ export interface CustomerHistory {
   orders: Order[];
 }
 
+export type OrderCreated = Order & {
+  /** Chave aleatória entregue uma única vez para vincular avisos deste pedido ao aparelho do cliente. */
+  customerNotificationKey: string;
+};
+
 export interface OrderItemInput {
   productId: number;
   quantity: number;

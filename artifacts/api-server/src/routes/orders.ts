@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { Router, type IRouter } from "express";
 import { db, ordersTable, orderItemsTable, customersTable, productsTable, financialEntriesTable } from "@workspace/db";
 import { eq, and, sql, inArray } from "drizzle-orm";
@@ -13,7 +14,12 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../lib/auth";
 import { createRateLimit } from "../lib/security";
-import { getFirebaseErrorCode, sendNewOrderPush } from "../lib/firebase-admin";
+import {
+  getFirebaseErrorCode,
+  sendCustomerOrderStatusPush,
+  sendCustomerPaymentReceivedPush,
+  sendNewOrderPush,
+} from "../lib/firebase-admin";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -22,9 +28,11 @@ const createOrderRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20
 async function getOrderWithItems(orderId: number) {
   const [o] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
   if (!o) return null;
+  const { customerNotificationKeyHash, ...safeOrder } = o;
+  void customerNotificationKeyHash;
   const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
   return {
-    ...o,
+    ...safeOrder,
     total: Number(o.total),
     deliveryFee: Number(o.deliveryFee),
     createdAt: o.createdAt.toISOString(),
@@ -101,7 +109,8 @@ router.get("/orders", requireAuth, requirePermission("orders"), async (req, res)
     .orderBy(sql`created_at DESC`);
 
   const result = await Promise.all(
-    orders.map(async (o) => {
+    orders.map(async ({ customerNotificationKeyHash, ...o }) => {
+      void customerNotificationKeyHash;
       const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
       return {
         ...o,
@@ -128,10 +137,13 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
   }
   const total = items.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0) + (orderData.deliveryFee ?? 0);
   const customerId = await ensureCustomerForOrder(orderData);
+  const customerNotificationKey = randomBytes(32).toString("base64url");
+  const customerNotificationKeyHash = createHash("sha256").update(customerNotificationKey).digest("hex");
 
   const [order] = await db.insert(ordersTable).values({
     ...orderData,
     customerId,
+    customerNotificationKeyHash,
     total: String(total),
     deliveryFee: orderData.deliveryFee !== undefined ? String(orderData.deliveryFee) : "0",
   }).returning();
@@ -167,6 +179,7 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
   }
 
   const result = await getOrderWithItems(order.id);
+  if (!result) { res.status(500).json({ error: "Não foi possível carregar o pedido criado." }); return; }
   try {
     const pushResult = await sendNewOrderPush(order.id);
     logger.info({ orderId: order.id, ...pushResult }, "Firebase order notification attempt completed");
@@ -177,7 +190,7 @@ router.post("/orders", createOrderRateLimit, async (req, res): Promise<void> => 
       errorCode: getFirebaseErrorCode(error),
     }, "Firebase order notification was not sent");
   }
-  res.status(201).json(result);
+  res.status(201).json({ ...result, customerNotificationKey });
 });
 
 router.get("/orders/:id", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
@@ -228,7 +241,7 @@ router.patch("/orders/:id/status", requireAuth, requirePermission("orders"), asy
   const parsed = UpdateOrderStatusBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [existing] = await db.select({ paymentMethod: ordersTable.paymentMethod, deliveryType: ordersTable.deliveryType })
+  const [existing] = await db.select({ paymentMethod: ordersTable.paymentMethod, deliveryType: ordersTable.deliveryType, status: ordersTable.status })
     .from(ordersTable).where(eq(ordersTable.id, params.data.id));
   if (!existing) { res.status(404).json({ error: "Order not found" }); return; }
 
@@ -246,6 +259,14 @@ router.patch("/orders/:id/status", requireAuth, requirePermission("orders"), asy
   if (!o) { res.status(404).json({ error: "Order not found" }); return; }
   if (parsed.data.status === "paid") {
     await ensureFinancialEntryForPaidOrder(o);
+  }
+  if (existing.status !== parsed.data.status) {
+    try {
+      const pushResult = await sendCustomerOrderStatusPush(o.id, parsed.data.status);
+      logger.info({ orderId: o.id, orderStatus: parsed.data.status, ...pushResult }, "Customer order status notification completed");
+    } catch (error) {
+      logger.warn({ orderId: o.id, status: parsed.data.status, errorCode: getFirebaseErrorCode(error) }, "Customer order status notification was not sent");
+    }
   }
   const result = await getOrderWithItems(o.id);
   res.json(result);
@@ -277,6 +298,15 @@ router.patch("/orders/:id/payment", requireAuth, requirePermission("orders"), as
   if (outcome === "not_delivered") {
     res.status(409).json({ error: "Confirme o pagamento somente depois que o pedido for entregue." });
     return;
+  }
+
+  if (outcome === "paid") {
+    try {
+      const pushResult = await sendCustomerPaymentReceivedPush(params.data.id);
+      logger.info({ orderId: params.data.id, ...pushResult }, "Customer payment notification completed");
+    } catch (error) {
+      logger.warn({ orderId: params.data.id, errorCode: getFirebaseErrorCode(error) }, "Customer payment notification was not sent");
+    }
   }
 
   const result = await getOrderWithItems(params.data.id);

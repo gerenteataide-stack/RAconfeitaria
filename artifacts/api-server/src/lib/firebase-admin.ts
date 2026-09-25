@@ -2,7 +2,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import { createPrivateKey } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
-import { db, pushTokensTable, usersTable } from "@workspace/db";
+import { customerOrderPushTokensTable, db, pushTokensTable, usersTable } from "@workspace/db";
 
 const PROJECT_ID = "raconfeitaria01";
 
@@ -65,6 +65,7 @@ function getAdminMessaging() {
 async function sendPushToSubscriptions(
   subscriptions: Array<{ id: number; token: string }>,
   data: Record<string, string>,
+  removeInvalid?: (ids: number[]) => Promise<unknown>,
 ): Promise<PushAttemptResult> {
   if (!isFirebaseAdminConfigured()) {
     return { status: "not_configured", recipients: 0, sent: 0, failed: 0, errorCodes: {} };
@@ -84,7 +85,10 @@ async function sendPushToSubscriptions(
       ? [subscriptions[index].id]
       : [];
   });
-  if (invalidIds.length) await db.delete(pushTokensTable).where(inArray(pushTokensTable.id, invalidIds));
+  if (invalidIds.length) {
+    if (removeInvalid) await removeInvalid(invalidIds);
+    else await db.delete(pushTokensTable).where(inArray(pushTokensTable.id, invalidIds));
+  }
 
   const errorCodes = result.responses.reduce<Record<string, number>>((counts, response) => {
     const code = response.error?.code;
@@ -98,6 +102,55 @@ async function sendPushToSubscriptions(
     failed: result.failureCount,
     errorCodes,
   };
+}
+
+async function sendCustomerOrderPush(orderId: number, data: Record<string, string>): Promise<PushAttemptResult> {
+  const subscriptions = await db.select({ id: customerOrderPushTokensTable.id, token: customerOrderPushTokensTable.token })
+    .from(customerOrderPushTokensTable)
+    .where(eq(customerOrderPushTokensTable.orderId, orderId));
+  return sendPushToSubscriptions(subscriptions, data, (ids) =>
+    db.delete(customerOrderPushTokensTable).where(inArray(customerOrderPushTokensTable.id, ids))
+  );
+}
+
+export async function sendCustomerOrderStatusPush(
+  orderId: number,
+  status: string,
+): Promise<PushAttemptResult> {
+  const messages: Record<string, { title: string; body: string }> = {
+    new: { title: "Pedido recebido", body: `Recebemos seu pedido #${orderId}.` },
+    awaiting_payment: { title: "Pagamento pendente", body: `Seu pedido #${orderId} aguarda a confirmação do pagamento.` },
+    paid: { title: "Pagamento confirmado", body: `O pagamento do pedido #${orderId} foi confirmado.` },
+    production: { title: "Pedido em preparo", body: `Começamos a preparar seu pedido #${orderId}.` },
+    ready: { title: "Pedido pronto", body: `Seu pedido #${orderId} está pronto para retirada ou entrega.` },
+    out_for_delivery: { title: "Pedido a caminho", body: `Seu pedido #${orderId} saiu para entrega.` },
+    delivered: { title: "Pedido entregue", body: `Seu pedido #${orderId} foi entregue. Obrigada pela preferência!` },
+    cancelled: { title: "Pedido cancelado", body: `O pedido #${orderId} foi cancelado. Fale conosco se precisar de ajuda.` },
+  };
+  const message = messages[status];
+  if (!message) return { status: "failed", recipients: 0, sent: 0, failed: 0, errorCodes: {} };
+
+  return sendCustomerOrderPush(orderId, {
+    type: "customer_order_update",
+    orderId: String(orderId),
+    status,
+    url: `/cardapio/sucesso?id=${orderId}`,
+    tag: `cliente-pedido-${orderId}-${status}`,
+    title: message.title,
+    body: message.body,
+  });
+}
+
+export async function sendCustomerPaymentReceivedPush(orderId: number): Promise<PushAttemptResult> {
+  return sendCustomerOrderPush(orderId, {
+    type: "customer_order_update",
+    orderId: String(orderId),
+    status: "payment_received",
+    url: `/cardapio/sucesso?id=${orderId}`,
+    tag: `cliente-pedido-${orderId}-payment-received`,
+    title: "Pagamento recebido",
+    body: `Recebemos o pagamento do pedido #${orderId}. Obrigada!`,
+  });
 }
 
 export async function sendNewOrderPush(orderId: number): Promise<PushAttemptResult> {

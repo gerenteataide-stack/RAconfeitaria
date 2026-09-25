@@ -32,6 +32,7 @@ export * from './listProductionOrdersParams';
 export * from './listProductsParams';
 export * from './listStockItemsParams';
 export * from './order';
+export * from './orderCreated';
 export * from './orderDeliveryType';
 export * from './orderInput';
 export * from './orderInputDeliveryType';

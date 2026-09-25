@@ -207,6 +207,9 @@ export default function StoreCheckout() {
         totalSpent: knownCustomer?.totalSpent ?? 0,
         totalOrders: knownCustomer?.totalOrders ?? 0,
       }));
+      if (order.customerNotificationKey) {
+        sessionStorage.setItem(`ra-order-notification-key:${order.id}`, order.customerNotificationKey);
+      }
       clear();
       navigate(`/cardapio/sucesso?id=${order.id}&method=${paymentMethod}`);
     } catch {

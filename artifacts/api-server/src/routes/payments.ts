@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { z } from "zod/v4";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import {
   db,
   financialEntriesTable,
@@ -10,6 +10,8 @@ import {
 } from "@workspace/db";
 import { requireAuth, requirePermission } from "../lib/auth";
 import { createRateLimit } from "../lib/security";
+import { getFirebaseErrorCode, sendCustomerOrderStatusPush } from "../lib/firebase-admin";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const paymentCheckoutRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
@@ -63,9 +65,25 @@ function formatPayment(row: typeof paymentsTable.$inferSelect) {
   };
 }
 
+async function updateOrderStatus(orderId: number, status: string) {
+  const [updated] = await db.update(ordersTable)
+    .set({ status })
+    .where(and(eq(ordersTable.id, orderId), ne(ordersTable.status, status)))
+    .returning({ id: ordersTable.id });
+  if (!updated) return;
+
+  try {
+    const result = await sendCustomerOrderStatusPush(orderId, status);
+    logger.info({ orderId, orderStatus: status, ...result }, "Customer order status notification completed");
+  } catch (error) {
+    logger.warn({ orderId, status, errorCode: getFirebaseErrorCode(error) }, "Customer order status notification was not sent");
+  }
+}
+
 async function markOrderPaid(orderId: number, payment: MercadoPagoPaymentResponse | PicPayPaymentResponse, provider: string) {
   const paidAt = "date_approved" in payment && payment.date_approved ? new Date(payment.date_approved) : new Date();
-  await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, orderId));
+  await updateOrderStatus(orderId, "paid");
+  await db.update(ordersTable).set({ paymentStatus: "paid" }).where(eq(ordersTable.id, orderId));
   await db.update(paymentsTable)
     .set({
       status: payment.status ?? "paid",
@@ -123,7 +141,7 @@ router.post("/payments/picpay/checkout", paymentCheckoutRateLimit, async (req, r
       externalReference,
       rawPayload: JSON.stringify({ reason: "PICPAY_TOKEN missing" }),
     }).returning();
-    await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+    await updateOrderStatus(order.id, "awaiting_payment");
     res.status(202).json({
       configured: false,
       message: "PicPay ainda nao esta configurado.",
@@ -179,7 +197,7 @@ router.post("/payments/picpay/checkout", paymentCheckoutRateLimit, async (req, r
     providerPreferenceId: picpay.referenceId ?? externalReference,
     rawPayload: JSON.stringify(picpay),
   }).returning();
-  await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+  await updateOrderStatus(order.id, "awaiting_payment");
 
   res.status(201).json({
     configured: true,
@@ -228,7 +246,7 @@ router.post("/payments/checkout", paymentCheckoutRateLimit, async (req, res): Pr
       externalReference,
       rawPayload: JSON.stringify({ reason: "MERCADO_PAGO_ACCESS_TOKEN missing" }),
     }).returning();
-    await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+    await updateOrderStatus(order.id, "awaiting_payment");
     res.status(202).json({
       configured: false,
       message: "Mercado Pago ainda nao esta configurado.",
@@ -286,7 +304,7 @@ router.post("/payments/checkout", paymentCheckoutRateLimit, async (req, res): Pr
     providerPreferenceId: preference.id,
     rawPayload: JSON.stringify(preference),
   }).returning();
-  await db.update(ordersTable).set({ status: "awaiting_payment" }).where(eq(ordersTable.id, order.id));
+  await updateOrderStatus(order.id, "awaiting_payment");
 
   res.status(201).json({
     configured: true,

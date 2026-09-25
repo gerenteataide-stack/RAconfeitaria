@@ -7,6 +7,7 @@ export const ordersTable = pgTable("orders", {
   customerId: integer("customer_id"),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
+  customerNotificationKeyHash: text("customer_notification_key_hash"),
   paymentMethod: text("payment_method"),
   paymentStatus: text("payment_status").notNull().default("pending"),
   status: text("status").notNull().default("new"),

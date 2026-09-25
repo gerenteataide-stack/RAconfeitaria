@@ -1,10 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { useLocation } from "wouter";
 import { ArrowRight, Cake, Instagram, MapPin, MessageCircle, Sparkles } from "lucide-react";
 import { type Product, useListProducts } from "@workspace/api-client-react";
 import { apiRequest } from "@/lib/api";
-import { useAuth } from "@/contexts/auth";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 type PublicSettings = {
@@ -40,8 +37,6 @@ function productHasPhoto(product: Product) {
 }
 
 export default function LandingPage() {
-  const [, navigate] = useLocation();
-  const { user, loading: authLoading } = useAuth();
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
@@ -58,19 +53,17 @@ export default function LandingPage() {
     .sort((first, second) => Number(productHasPhoto(second)) - Number(productHasPhoto(first)))
     .slice(0, 6);
 
-  useEffect(() => {
-    if (!authLoading && user) navigate("/dashboard", { replace: true });
-  }, [authLoading, navigate, user]);
-
   return (
     <main className="min-h-screen overflow-hidden bg-[#FFF9FC] text-[#2C2C2C]">
       <section className="relative isolate flex min-h-[82svh] items-center overflow-hidden px-5 pb-20 pt-6 sm:px-8 lg:px-16">
         <div className="absolute inset-0 -z-20 bg-[#FFF9FC]" />
-        <img
-          src="/confeiteira-rochelle.png"
-          alt={`Confeiteira ${businessName}`}
-          className="pointer-events-none absolute bottom-0 right-0 -z-10 h-[48%] max-w-none object-contain object-bottom opacity-40 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
-        />
+        <div className="hero-confectioner pointer-events-none absolute bottom-0 right-0 -z-10 h-[92%] sm:h-[92%] lg:right-[4%] lg:h-[94%]">
+          <img
+            src="/confeiteira-rochelle.png"
+            alt={`Confeiteira ${businessName}`}
+            className="hero-confectioner-image h-full max-w-none object-contain object-bottom opacity-50 sm:opacity-60 lg:opacity-100"
+          />
+        </div>
 
         <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center px-5 py-5 sm:px-8 lg:px-16">
           <a href="/" className="flex min-w-0 items-center gap-3" aria-label={`${businessName}, página inicial`}>
