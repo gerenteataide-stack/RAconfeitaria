@@ -13,6 +13,19 @@ const firebaseConfig = {
 
 const vapidKey = "BJSAnSH_owVpR38r1jK9Y3zg5ZFqfCKXFnv39VHFyr2msDWv8QuTMosD5S6wSge2By9Rcuv0wzQ8AnCoOF3xr6A";
 
+function isRecoverableTokenError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+  return code === "messaging/token-subscribe-failed"
+    || (message.includes("registration failed") && message.includes("push service error"));
+}
+
+async function clearPushSubscription(registration: ServiceWorkerRegistration, messaging: ReturnType<typeof getMessaging>) {
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription) await subscription.unsubscribe().catch(() => undefined);
+  await deleteToken(messaging).catch(() => undefined);
+}
+
 async function getBrowserMessaging() {
   if (typeof window === "undefined" || !(await isSupported())) return null;
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -49,9 +62,8 @@ export async function registerOrderPush(): Promise<string> {
   try {
     token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: activeRegistration });
   } catch (error) {
-    const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-    if (code !== "messaging/token-subscribe-failed") throw error;
-    await deleteToken(messaging).catch(() => undefined);
+    if (!isRecoverableTokenError(error)) throw error;
+    await clearPushSubscription(activeRegistration, messaging);
     await activeRegistration.update();
     token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: activeRegistration });
   }
