@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/auth";
 import { apiRequest } from "@/lib/api";
-import { getCurrentOrderPushToken, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
+import { getCurrentOrderPushToken, getPushRegistrationError, registerOrderPush, removeOrderPushToken } from "@/lib/firebase-push";
 import { playOrderSound, unlockOrderSound } from "@/lib/order-sound";
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -212,7 +212,7 @@ export default function Orders() {
       setPushEnabled(!enabled);
       toast({
         title: enabled ? "Não foi possível ativar as notificações" : "Não foi possível desativar as notificações",
-        description: error instanceof Error ? error.message : "Tente novamente neste navegador.",
+        description: getPushRegistrationError(error).message,
         variant: "destructive",
       });
     } finally {

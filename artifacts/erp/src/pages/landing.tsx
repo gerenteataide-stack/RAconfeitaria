@@ -57,13 +57,11 @@ export default function LandingPage() {
     <main className="min-h-screen overflow-hidden bg-[#FFF9FC] text-[#2C2C2C]">
       <section className="relative isolate flex min-h-[82svh] items-center overflow-hidden px-5 pb-20 pt-6 sm:px-8 lg:px-16">
         <div className="absolute inset-0 -z-20 bg-[#FFF9FC]" />
-        <div className="hero-confectioner pointer-events-none absolute bottom-0 right-0 -z-10 h-[92%] sm:h-[92%] lg:right-[4%] lg:h-[94%]">
-          <img
-            src="/confeiteira-rochelle.png"
-            alt={`Confeiteira ${businessName}`}
-            className="hero-confectioner-image h-full max-w-none object-contain object-bottom opacity-50 sm:opacity-60 lg:opacity-100"
-          />
-        </div>
+        <img
+          src="/confeiteira-rochelle.png"
+          alt={`Confeiteira ${businessName}`}
+          className="hero-confectioner pointer-events-none absolute bottom-0 right-0 -z-10 h-auto w-[42%] max-h-[68%] object-contain object-bottom sm:w-[40%] sm:max-h-[76%] lg:right-[4%] lg:h-[94%] lg:w-auto lg:max-h-none"
+        />
 
         <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center px-5 py-5 sm:px-8 lg:px-16">
           <a href="/" className="flex min-w-0 items-center gap-3" aria-label={`${businessName}, página inicial`}>
@@ -76,27 +74,27 @@ export default function LandingPage() {
         </header>
 
         <div className="relative z-10 mx-auto w-full max-w-7xl pt-24 lg:pt-16">
-          <div className="w-[70%] max-w-2xl sm:w-[60%] lg:w-full">
+          <div className="w-[53%] max-w-2xl sm:w-[54%] lg:w-full">
             <div className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#7A8B68]">
               <Sparkles className="h-4 w-4" aria-hidden="true" />
               <span>Feito à mão, para celebrar</span>
             </div>
-            <h1 className="max-w-xl font-serif text-4xl font-bold leading-tight text-[#43243D] sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-xl font-serif text-3xl font-bold leading-tight text-[#43243D] sm:text-5xl lg:text-6xl">
               {businessName}
             </h1>
             <p className="mt-3 text-lg font-medium text-[#7B2E68] sm:text-xl">{subtitle}</p>
             <p className="mt-5 max-w-lg text-base leading-7 text-[#51464E] sm:text-lg">{description}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <a
                 href="/cardapio"
-                className="inline-flex min-h-12 items-center gap-2 rounded-md bg-[#7B2E68] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#642455]"
+                className="inline-flex min-h-12 max-w-full items-center gap-2 rounded-md bg-[#7B2E68] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#642455] sm:px-6"
               >
                 Fazer pedido
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
                 href="#produtos"
-                className="inline-flex min-h-12 items-center rounded-md border border-[#7A8B68]/50 bg-white/70 px-5 text-sm font-semibold text-[#46513C] transition-colors hover:bg-white"
+                className="inline-flex min-h-12 max-w-full items-center rounded-md border border-[#7A8B68]/50 bg-white/70 px-3 text-sm font-semibold text-[#46513C] transition-colors hover:bg-white sm:px-5"
               >
                 Conhecer os produtos
               </a>

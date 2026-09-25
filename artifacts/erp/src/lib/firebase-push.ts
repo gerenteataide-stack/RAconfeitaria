@@ -46,6 +46,25 @@ export async function registerOrderPush(): Promise<string> {
   return token;
 }
 
+export function getPushRegistrationError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String(error.code)
+    : "";
+
+  if (
+    code === "messaging/token-subscribe-failed" ||
+    (normalizedMessage.includes("registration failed") && normalizedMessage.includes("push service error"))
+  ) {
+    return new Error(
+      "O serviço de notificações do aparelho não respondeu. Abra o site no Chrome atualizado (fora do WhatsApp ou Instagram), confira a conexão e tente novamente. Se continuar, reinicie o navegador e o aparelho.",
+    );
+  }
+
+  return error instanceof Error ? error : new Error("Não foi possível ativar as notificações. Tente novamente.");
+}
+
 export async function getCurrentOrderPushToken(): Promise<string | null> {
   if (!(await isSupported()) || typeof Notification === "undefined" || Notification.permission !== "granted") return null;
   const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });

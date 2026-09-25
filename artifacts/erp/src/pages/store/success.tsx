@@ -5,7 +5,7 @@ import { ArrowLeft, BellRing, CheckCircle, Copy, MessageCircle } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { registerOrderPush } from "@/lib/firebase-push";
+import { getPushRegistrationError, registerOrderPush } from "@/lib/firebase-push";
 
 type PublicSettings = {
   whatsappNumber: string;
@@ -84,7 +84,7 @@ export default function StoreSuccess() {
     } catch (error) {
       toast({
         title: notificationsEnabled ? "Não foi possível desativar os avisos" : "Não foi possível ativar os avisos",
-        description: error instanceof Error ? error.message : "Tente novamente.",
+        description: getPushRegistrationError(error).message,
         variant: "destructive",
       });
     } finally {

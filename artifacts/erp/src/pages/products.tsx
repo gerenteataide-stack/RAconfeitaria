@@ -298,7 +298,7 @@ export default function Products() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-xl" />
+            <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
       ) : products.length === 0 ? (
@@ -314,9 +314,9 @@ export default function Products() {
             return (
               <div key={p.id} className="bg-white rounded-xl border border-pink-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
                 {/* Image area */}
-                <div className="relative h-40 bg-gradient-to-br from-pink-50 to-purple-50 group">
+                <div className="group relative h-28 bg-[#FFF9FC] md:h-32">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-contain p-1.5" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <ImageIcon className="w-10 h-10 opacity-20" style={{ color: "#7B2E68" }} />
