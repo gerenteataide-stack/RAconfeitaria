@@ -39,6 +39,7 @@ export * from './orderInputPaymentMethod';
 export * from './orderItem';
 export * from './orderItemInput';
 export * from './orderPaymentMethod';
+export * from './orderPaymentStatus';
 export * from './orderStatus';
 export * from './orderStatusUpdate';
 export * from './orderStatusUpdateStatus';

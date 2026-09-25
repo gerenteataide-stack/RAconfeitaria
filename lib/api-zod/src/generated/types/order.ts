@@ -8,6 +8,7 @@
 import type { OrderDeliveryType } from './orderDeliveryType';
 import type { OrderItem } from './orderItem';
 import type { OrderPaymentMethod } from './orderPaymentMethod';
+import type { OrderPaymentStatus } from './orderPaymentStatus';
 import type { OrderStatus } from './orderStatus';
 
 export interface Order {
@@ -20,6 +21,7 @@ export interface Order {
   customerPhone?: string | null;
   /** @nullable */
   paymentMethod?: OrderPaymentMethod;
+  paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   total: number;
   deliveryType: OrderDeliveryType;

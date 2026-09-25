@@ -71,7 +71,14 @@ const KANBAN_COLUMNS = [
 
 function nextActions(order: Order): Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> {
   const actions: Array<{ label: string; status: OrderStatusUpdateStatus; variant?: "default" | "outline" | "destructive" }> = [];
-  if (order.status === "new" || order.status === "awaiting_payment") actions.push({ label: "Marcar pago", status: "paid" });
+  const cardPaidAtDelivery = order.deliveryType === "delivery"
+    && (order.paymentMethod === "credit_card" || order.paymentMethod === "debit_card")
+    && order.paymentStatus !== "paid";
+  if (order.status === "new" || order.status === "awaiting_payment") {
+    actions.push(cardPaidAtDelivery
+      ? { label: "Iniciar produção", status: "production" }
+      : { label: "Marcar pago", status: "paid" });
+  }
   if (order.status === "paid") actions.push({ label: "Produção", status: "production" });
   if (order.status === "production") actions.push({ label: "Pronto", status: "ready" });
   if (order.status === "ready" && order.deliveryType === "delivery") actions.push({ label: "Saiu", status: "out_for_delivery", variant: "outline" });
@@ -88,6 +95,7 @@ export default function Orders() {
   const [orderSoundEnabled, setOrderSoundEnabled] = useState(() => localStorage.getItem("ra-order-sound-enabled") !== "false");
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("ra-order-push-enabled") === "true");
   const [pushBusy, setPushBusy] = useState(false);
+  const [paymentBusyId, setPaymentBusyId] = useState<number | null>(null);
   const orderSnapshotRef = useRef<{ date: string; ids: Set<number> | null }>({ date: selectedDate, ids: null });
   const orderParams = selectedDate ? { date: selectedDate } : undefined;
   const { data: orders = [], isLoading } = useListOrders(orderParams, {
@@ -231,6 +239,23 @@ export default function Orders() {
     updateStatus.mutate({ id: order.id, data: { status } });
   }
 
+  async function confirmOrderPayment(order: Order) {
+    setPaymentBusyId(order.id);
+    try {
+      await apiRequest<Order>(`/api/orders/${order.id}/payment`, { method: "PATCH" });
+      await qc.invalidateQueries({ queryKey: getListOrdersQueryKey(orderParams) });
+      toast({ title: "Pagamento confirmado", description: "A entrada do pedido foi registrada no financeiro." });
+    } catch (error) {
+      toast({
+        title: "Não foi possível confirmar o pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setPaymentBusyId(null);
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col gap-6">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -328,6 +353,9 @@ export default function Orders() {
                             <p className="mt-1 text-xs text-muted-foreground">
                               Pagamento: {order.paymentMethod ? PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod : "A combinar"}
                             </p>
+                            <p className={`mt-1 text-xs font-medium ${order.paymentStatus === "paid" ? "text-emerald-700" : "text-amber-700"}`}>
+                              {order.paymentStatus === "paid" ? "Pagamento recebido" : "Pagamento pendente"}
+                            </p>
                           </div>
 
                           <div className="mt-1 flex items-center justify-between border-t border-border pt-3">
@@ -351,6 +379,16 @@ export default function Orders() {
                                 {action.label}
                               </Button>
                             ))}
+                            {order.status === "delivered" && order.paymentStatus !== "paid" && (
+                              <Button
+                                size="sm"
+                                onClick={() => void confirmOrderPayment(order)}
+                                disabled={paymentBusyId === order.id}
+                                className="h-8 text-xs"
+                              >
+                                {paymentBusyId === order.id ? "Confirmando..." : "Confirmar pagamento"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       );

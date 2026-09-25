@@ -20,14 +20,25 @@ async function getBrowserMessaging() {
 }
 
 export async function registerOrderPush(): Promise<string> {
-  if (!(await isSupported()) || !("Notification" in window) || !("serviceWorker" in navigator)) {
+  if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
     throw new Error("Este navegador não oferece suporte a notificações push.");
   }
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new Error("Permita notificações para receber avisos de pedidos.");
+  if (Notification.permission === "denied") {
+    throw new Error("As notificações estão bloqueadas. No Chrome, abra as configurações do site e permita notificações para tentar novamente.");
+  }
 
-  const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  // Start the permission prompt in the click handler before awaiting browser capability checks.
+  const supportCheck = isSupported();
+  const permissionRequest = Notification.permission === "granted"
+    ? Promise.resolve<NotificationPermission>("granted")
+    : Notification.requestPermission();
+  const [supported, permission] = await Promise.all([supportCheck, permissionRequest]);
+  if (permission !== "granted") throw new Error("Permita notificações para receber avisos de pedidos.");
+  if (!supported) throw new Error("Este navegador não oferece suporte a notificações push. Abra o app no Chrome atualizado.");
+
+  await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  const registration = await navigator.serviceWorker.ready;
   const messaging = await getBrowserMessaging();
   if (!messaging) throw new Error("Não foi possível iniciar as notificações neste navegador.");
   const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });

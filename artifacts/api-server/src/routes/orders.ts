@@ -66,9 +66,15 @@ async function ensureFinancialEntryForPaidOrder(order: typeof ordersTable.$infer
     .limit(1);
   if (existing.length > 0) return;
 
+  await db.insert(financialEntriesTable).values({
+    ...paidOrderEntryValues(order),
+  });
+}
+
+function paidOrderEntryValues(order: typeof ordersTable.$inferSelect) {
   const today = new Date().toISOString().slice(0, 10);
   const saleAmount = Math.max(0, Number(order.total) - Number(order.deliveryFee ?? 0));
-  await db.insert(financialEntriesTable).values({
+  return {
     type: "receivable",
     description: `Pedido #${order.id}`,
     amount: String(saleAmount),
@@ -78,7 +84,7 @@ async function ensureFinancialEntryForPaidOrder(order: typeof ordersTable.$infer
     counterpart: order.customerName ?? "Cliente",
     category: "Venda",
     orderId: order.id,
-  });
+  };
 }
 
 router.get("/orders", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
@@ -222,12 +228,58 @@ router.patch("/orders/:id/status", requireAuth, requirePermission("orders"), asy
   const parsed = UpdateOrderStatusBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [o] = await db.update(ordersTable).set({ status: parsed.data.status }).where(eq(ordersTable.id, params.data.id)).returning();
+  const [existing] = await db.select({ paymentMethod: ordersTable.paymentMethod, deliveryType: ordersTable.deliveryType })
+    .from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  if (!existing) { res.status(404).json({ error: "Order not found" }); return; }
+
+  const cardPaidAtDelivery = existing.deliveryType === "delivery"
+    && (existing.paymentMethod === "credit_card" || existing.paymentMethod === "debit_card");
+  if (parsed.data.status === "paid" && cardPaidAtDelivery) {
+    res.status(409).json({ error: "Pedidos no cartão para entrega só devem ser marcados como pagos após a confirmação do recebimento." });
+    return;
+  }
+
+  const [o] = await db.update(ordersTable).set({
+    status: parsed.data.status,
+    ...(parsed.data.status === "paid" ? { paymentStatus: "paid" } : {}),
+  }).where(eq(ordersTable.id, params.data.id)).returning();
   if (!o) { res.status(404).json({ error: "Order not found" }); return; }
   if (parsed.data.status === "paid") {
     await ensureFinancialEntryForPaidOrder(o);
   }
   const result = await getOrderWithItems(o.id);
+  res.json(result);
+});
+
+router.patch("/orders/:id/payment", requireAuth, requirePermission("orders"), async (req, res): Promise<void> => {
+  const params = UpdateOrderParams.safeParse({ id: Number(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const outcome = await db.transaction(async (tx) => {
+    const [order] = await tx.select().from(ordersTable)
+      .where(eq(ordersTable.id, params.data.id))
+      .for("update");
+    if (!order) return "not_found" as const;
+    if (order.status !== "delivered") return "not_delivered" as const;
+    if (order.paymentStatus === "paid") return "already_paid" as const;
+
+    await tx.update(ordersTable).set({ paymentStatus: "paid" }).where(eq(ordersTable.id, order.id));
+    const existingEntry = await tx.select({ id: financialEntriesTable.id }).from(financialEntriesTable)
+      .where(sql`order_id = ${order.id} AND type = 'receivable'`)
+      .limit(1);
+    if (existingEntry.length === 0) {
+      await tx.insert(financialEntriesTable).values(paidOrderEntryValues(order));
+    }
+    return "paid" as const;
+  });
+
+  if (outcome === "not_found") { res.status(404).json({ error: "Order not found" }); return; }
+  if (outcome === "not_delivered") {
+    res.status(409).json({ error: "Confirme o pagamento somente depois que o pedido for entregue." });
+    return;
+  }
+
+  const result = await getOrderWithItems(params.data.id);
   res.json(result);
 });
 

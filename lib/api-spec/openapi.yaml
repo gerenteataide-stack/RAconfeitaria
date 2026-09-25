@@ -1197,7 +1197,7 @@ components:
     # ─── ORDER ──────────────────────────────────────────────────────────────
     Order:
       type: object
-      required: [id, status, total, deliveryType, deliveryDate, createdAt]
+      required: [id, status, paymentStatus, total, deliveryType, deliveryDate, createdAt]
       properties:
         id:
           type: integer
@@ -1210,6 +1210,9 @@ components:
         paymentMethod:
           type: ["string", "null"]
           enum: [pix, cash, debit_card, credit_card, null]
+        paymentStatus:
+          type: string
+          enum: [pending, paid]
         status:
           type: string
           enum: [new, awaiting_payment, paid, production, ready, out_for_delivery, delivered, cancelled]

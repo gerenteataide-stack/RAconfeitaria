@@ -69,7 +69,7 @@ export default function LandingPage() {
         <img
           src="/confeiteira-rochelle.png"
           alt={`Confeiteira ${businessName}`}
-          className="pointer-events-none absolute -bottom-[2%] -right-[24%] -z-10 h-[58%] max-w-none object-contain object-bottom opacity-40 sm:right-0 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
+          className="pointer-events-none absolute bottom-0 right-0 -z-10 h-[48%] max-w-none object-contain object-bottom opacity-40 sm:h-[82%] sm:opacity-60 lg:right-[4%] lg:h-[94%] lg:opacity-100"
         />
 
         <header className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-7xl items-center px-5 py-5 sm:px-8 lg:px-16">

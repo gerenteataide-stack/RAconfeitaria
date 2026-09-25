@@ -28,7 +28,7 @@ export function playOrderSound() {
   const play = () => {
     if (context.state !== "running") return;
     const startedAt = context.currentTime;
-    [880, 660].forEach((frequency, index) => {
+    [1320, 1040].forEach((frequency, index) => {
       const startAt = startedAt + index * 0.2;
       const oscillator = context.createOscillator();
       const gain = context.createGain();

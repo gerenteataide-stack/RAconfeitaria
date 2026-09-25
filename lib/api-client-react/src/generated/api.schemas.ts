@@ -170,6 +170,14 @@ export const OrderPaymentMethod = {
   credit_card: 'credit_card',
 } as const;
 
+export type OrderPaymentStatus = typeof OrderPaymentStatus[keyof typeof OrderPaymentStatus];
+
+
+export const OrderPaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+} as const;
+
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
 
@@ -213,6 +221,7 @@ export interface Order {
   customerPhone?: string | null;
   /** @nullable */
   paymentMethod?: OrderPaymentMethod;
+  paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   total: number;
   deliveryType: OrderDeliveryType;
