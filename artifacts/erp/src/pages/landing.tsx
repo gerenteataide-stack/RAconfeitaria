@@ -37,6 +37,21 @@ function productHasPhoto(product: Product) {
   return Boolean(product.imageUrl?.trim());
 }
 
+function getLatestStoredOrderId() {
+  const preferredId = window.localStorage.getItem("ra-last-order-id")?.trim() ?? "";
+  if (/^\d+$/.test(preferredId) && window.localStorage.getItem(`ra-order-notification-key:${preferredId}`)) {
+    return preferredId;
+  }
+
+  let latestId: string | null = null;
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index) ?? "";
+    const match = key.match(/^ra-order-notification-key:(\d+)$/);
+    if (match && (!latestId || Number(match[1]) > Number(latestId))) latestId = match[1];
+  }
+  return latestId;
+}
+
 export default function LandingPage() {
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const { data: settings } = useQuery({
@@ -46,10 +61,7 @@ export default function LandingPage() {
   const { data: products = [], isLoading } = useListProducts();
 
   useEffect(() => {
-    const orderId = window.localStorage.getItem("ra-last-order-id")?.trim() ?? "";
-    if (/^\d+$/.test(orderId) && window.localStorage.getItem(`ra-order-notification-key:${orderId}`)) {
-      setLastOrderId(orderId);
-    }
+    setLastOrderId(getLatestStoredOrderId());
   }, []);
 
   const businessName = settings?.businessName?.trim() || "Rochelle Ataide";
@@ -57,6 +69,9 @@ export default function LandingPage() {
   const description = settings?.businessDescription?.trim() || "Bolos, doces e momentos especiais feitos com carinho.";
   const whatsappUrl = getWhatsappUrl(settings?.whatsappNumber ?? "");
   const instagramUrl = getInstagramUrl(settings?.instagram ?? "");
+  const orderTrackingUrl = lastOrderId
+    ? `/cardapio/sucesso?id=${encodeURIComponent(lastOrderId)}`
+    : "/cardapio/sucesso";
   const featuredProducts = products
     .filter((product) => product.available)
     .sort((first, second) => Number(productHasPhoto(second)) - Number(productHasPhoto(first)))
@@ -107,14 +122,12 @@ export default function LandingPage() {
               >
                 Conhecer os produtos
               </a>
-              {lastOrderId && (
-                <a
-                  href={`/cardapio/sucesso?id=${encodeURIComponent(lastOrderId)}`}
-                  className="inline-flex min-h-12 max-w-full items-center rounded-md border border-[#7B2E68]/40 bg-[#FFF0F8] px-3 text-sm font-semibold text-[#7B2E68] transition-colors hover:bg-[#F9DDEC] sm:px-5"
-                >
-                  Acompanhar pedido
-                </a>
-              )}
+              <a
+                href={orderTrackingUrl}
+                className="inline-flex min-h-12 max-w-full items-center rounded-md border border-[#7B2E68]/40 bg-[#FFF0F8] px-3 text-sm font-semibold text-[#7B2E68] transition-colors hover:bg-[#F9DDEC] sm:px-5"
+              >
+                Acompanhar pedido
+              </a>
               <PwaInstallPrompt />
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[#544A51]">

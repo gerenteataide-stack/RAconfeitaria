@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { useLocation } from "wouter";
-import { ShoppingCart, Plus, Minus, Cake, Star, Search } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Cake, Star, Search, Home } from "lucide-react";
 import { useListProducts } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
 import { useListCategories } from "@workspace/api-client-react";
@@ -85,6 +85,12 @@ export default function StoreCatalog() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-4 flex justify-start">
+          <Button type="button" variant="outline" className="gap-2 border-pink-200 text-[#7B2E68] hover:bg-pink-50" onClick={() => navigate("/")}>
+            <Home className="h-4 w-4" aria-hidden="true" />
+            Tela inicial
+          </Button>
+        </div>
         {/* Search + Cart button */}
         <div className="flex gap-3 mb-6">
           <div className="relative flex-1">

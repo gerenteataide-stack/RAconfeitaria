@@ -86,6 +86,7 @@ export default function StoreSuccess() {
   const whatsappDigits = onlyDigits(whatsapp);
   const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}` : undefined;
   const paymentMethodLabel = paymentMethod === "pix" ? "Pix" : paymentMethod === "cash" ? "Dinheiro" : paymentMethod === "debit_card" ? "Cartão de débito" : paymentMethod === "credit_card" ? "Cartão de crédito" : "a combinar";
+  const hasValidOrderId = Number.isSafeInteger(numericOrderId) && numericOrderId > 0;
 
   useEffect(() => {
     if (
@@ -159,6 +160,28 @@ export default function StoreSuccess() {
     } finally {
       setNotificationsLoading(false);
     }
+  }
+
+  if (!hasValidOrderId) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-pink-50">
+          <MessageCircle className="h-10 w-10 text-[#7B2E68]" aria-hidden="true" />
+        </div>
+        <h1 className="mb-3 font-serif text-3xl font-bold text-[#7B2E68]">Acompanhar pedido</h1>
+        <p className="mb-8 text-lg text-muted-foreground">
+          Ainda não encontramos um pedido salvo neste aparelho. Faça um pedido para acompanhar o status por aqui.
+        </p>
+        <div className="flex flex-col justify-center gap-3 sm:flex-row">
+          <Button type="button" onClick={() => navigate("/cardapio")} className="gap-2" style={{ backgroundColor: "#7B2E68" }}>
+            Ver cardápio
+          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate("/")} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Tela inicial
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
