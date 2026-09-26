@@ -128,9 +128,11 @@ export function getPushRegistrationError(error: unknown): Error {
 export async function getCurrentOrderPushToken(): Promise<string | null> {
   if (!(await isSupported()) || typeof Notification === "undefined" || Notification.permission !== "granted") return null;
   const registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  await registration.update();
+  const activeRegistration = await navigator.serviceWorker.ready;
   const messaging = await getBrowserMessaging();
   if (!messaging) return null;
-  return (await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration })) || null;
+  return (await getToken(messaging, { vapidKey, serviceWorkerRegistration: activeRegistration })) || null;
 }
 
 export async function removeOrderPushToken(): Promise<void> {

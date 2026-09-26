@@ -103,6 +103,7 @@ export default function Orders() {
   const [orderSoundEnabled, setOrderSoundEnabled] = useState(() => localStorage.getItem("ra-order-sound-enabled") !== "false");
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem("ra-order-push-enabled") === "true");
   const [pushBusy, setPushBusy] = useState(false);
+  const pushSyncingRef = useRef(false);
   const pushEnvironment = getPushEnvironment();
   const pushBlockedUntilHomeScreen = pushEnvironment.requiresHomeScreenApp;
   const [paymentBusyId, setPaymentBusyId] = useState<number | null>(null);
@@ -149,6 +150,38 @@ export default function Orders() {
       window.removeEventListener("keydown", unlockAudio);
     };
   }, [orderSoundEnabled]);
+
+  useEffect(() => {
+    if (!pushEnabled || pushBlockedUntilHomeScreen || (user?.role !== "owner" && user?.role !== "manager")) return;
+
+    let cancelled = false;
+    const syncPushToken = async () => {
+      if (cancelled || pushSyncingRef.current) return;
+      pushSyncingRef.current = true;
+      try {
+        const token = await getCurrentOrderPushToken();
+        if (!token || cancelled) return;
+        await apiRequest<{ serverConfigured: boolean }>("/api/push-tokens", {
+          method: "POST",
+          body: JSON.stringify({ token }),
+        });
+      } catch {
+        // A background refresh must not interrupt order management.
+      } finally {
+        pushSyncingRef.current = false;
+      }
+    };
+
+    void syncPushToken();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void syncPushToken();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [pushBlockedUntilHomeScreen, pushEnabled, user?.role]);
 
   useEffect(() => {
     if (orderSnapshotRef.current.date !== selectedDate) {

@@ -82,7 +82,7 @@ export default function StoreSuccess() {
         localStorage.setItem(notificationPreferenceKey, "true");
       })
       .catch(() => {
-        // A temporary token/network failure must not make the customer activate again.
+        setNotificationsEnabled(false);
         syncedOrderIdRef.current = null;
       })
       .finally(() => setNotificationsLoading(false));
