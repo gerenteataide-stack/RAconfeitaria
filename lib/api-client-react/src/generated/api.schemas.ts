@@ -285,6 +285,39 @@ export type OrderCreated = Order & {
   customerNotificationKey: string;
 };
 
+export type CustomerOrderStatusStatus = typeof CustomerOrderStatusStatus[keyof typeof CustomerOrderStatusStatus];
+
+
+export const CustomerOrderStatusStatus = {
+  new: 'new',
+  awaiting_payment: 'awaiting_payment',
+  paid: 'paid',
+  production: 'production',
+  ready: 'ready',
+  out_for_delivery: 'out_for_delivery',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export type CustomerOrderStatusPaymentStatus = typeof CustomerOrderStatusPaymentStatus[keyof typeof CustomerOrderStatusPaymentStatus];
+
+
+export const CustomerOrderStatusPaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+} as const;
+
+export interface CustomerOrderStatus {
+  id: number;
+  status: CustomerOrderStatusStatus;
+  paymentStatus: CustomerOrderStatusPaymentStatus;
+  /** @nullable */
+  deliveryDate?: string | null;
+  /** @nullable */
+  deliveryTime?: string | null;
+  updatedAt: string;
+}
+
 export interface OrderItemInput {
   productId: number;
   quantity: number;
@@ -605,6 +638,15 @@ customerId?: number;
 date?: string;
 };
 
+export type GetCustomerOrderStatusParams = {
+orderId: number;
+/**
+ * @minLength 32
+ * @maxLength 128
+ */
+customerNotificationKey: string;
+};
+
 export type ListProductionOrdersParams = {
 date?: string;
 status?: string;
@@ -635,3 +677,4 @@ month?: string;
 export type GetDreParams = {
 month?: string;
 };
+

@@ -1,7 +1,7 @@
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js");
 
-const CACHE_NAME = "ra-confeitaria-v5";
+const CACHE_NAME = "ra-confeitaria-v6";
 const APP_SHELL = ["/", "/cardapio", "/manifest.webmanifest", "/app-icon-192.png", "/app-icon-512.png"];
 
 firebase.initializeApp({
@@ -47,7 +47,11 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(APP_SHELL.map((url) => cache.add(url).catch(() => undefined))),
+    ),
+  );
   self.skipWaiting();
 });
 
@@ -63,6 +67,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).pathname.startsWith("/api/")) return;
+
+  if (request.mode === "navigate" || request.destination === "document") {
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request).then((response) => {

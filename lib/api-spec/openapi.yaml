@@ -514,6 +514,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/Order"
 
+  /customer-order-status:
+    get:
+      operationId: getCustomerOrderStatus
+      tags: [orders]
+      summary: Get a customer's order status with the order notification key
+      parameters:
+        - name: orderId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: customerNotificationKey
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 128
+      responses:
+        "200":
+          description: Customer order status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerOrderStatus"
+        "404":
+          description: Invalid order key or order not found
+
   # ─── PRODUCTION ───────────────────────────────────────────────────────────
   /production:
     get:
@@ -1258,6 +1286,25 @@ components:
             customerNotificationKey:
               type: string
               description: Chave aleatória entregue uma única vez para vincular avisos deste pedido ao aparelho do cliente.
+
+    CustomerOrderStatus:
+      type: object
+      required: [id, status, paymentStatus, updatedAt]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [new, awaiting_payment, paid, production, ready, out_for_delivery, delivered, cancelled]
+        paymentStatus:
+          type: string
+          enum: [pending, paid]
+        deliveryDate:
+          type: [string, "null"]
+        deliveryTime:
+          type: [string, "null"]
+        updatedAt:
+          type: string
 
     OrderItem:
       type: object

@@ -27,6 +27,7 @@ import type {
   Customer,
   CustomerHistory,
   CustomerInput,
+  CustomerOrderStatus,
   CustomerUpdate,
   DashboardStats,
   Dre,
@@ -34,6 +35,7 @@ import type {
   FinancialEntryInput,
   FinancialEntryUpdate,
   GetCashFlowParams,
+  GetCustomerOrderStatusParams,
   GetDreParams,
   HealthStatus,
   ListCustomersParams,
@@ -2021,6 +2023,90 @@ export const useUpdateOrderStatus = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateOrderStatusMutationOptions(options));
     }
+
+export const getGetCustomerOrderStatusUrl = (params: GetCustomerOrderStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/customer-order-status?${stringifiedParams}` : `/api/customer-order-status`
+}
+
+/**
+ * @summary Get a customer's order status with the order notification key
+ */
+export const getCustomerOrderStatus = async (params: GetCustomerOrderStatusParams, options?: RequestInit): Promise<CustomerOrderStatus> => {
+
+  return customFetch<CustomerOrderStatus>(getGetCustomerOrderStatusUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomerOrderStatusQueryKey = (params?: GetCustomerOrderStatusParams,) => {
+    return [
+    `/api/customer-order-status`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCustomerOrderStatusQueryOptions = <TData = Awaited<ReturnType<typeof getCustomerOrderStatus>>, TError = ErrorType<void>>(params: GetCustomerOrderStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerOrderStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomerOrderStatusQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomerOrderStatus>>> = ({ signal }) => getCustomerOrderStatus(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomerOrderStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustomerOrderStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomerOrderStatus>>>
+export type GetCustomerOrderStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a customer's order status with the order notification key
+ */
+
+export function useGetCustomerOrderStatus<TData = Awaited<ReturnType<typeof getCustomerOrderStatus>>, TError = ErrorType<void>>(
+ params: GetCustomerOrderStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustomerOrderStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustomerOrderStatusQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListProductionOrdersUrl = (params?: ListProductionOrdersParams,) => {
   const normalizedParams = new URLSearchParams();

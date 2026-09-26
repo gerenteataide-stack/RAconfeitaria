@@ -13,10 +13,35 @@ type PublicSettings = {
   pixKey: string;
 };
 
+type CustomerOrderStatus = {
+  id: number;
+  status: string;
+  paymentStatus: "pending" | "paid";
+  deliveryDate: string | null;
+  deliveryTime: string | null;
+  updatedAt: string;
+};
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  new: "Pedido recebido",
+  awaiting_payment: "Aguardando pagamento",
+  paid: "Pagamento confirmado",
+  production: "Em preparo",
+  ready: "Pronto",
+  out_for_delivery: "Saiu para entrega",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+};
+
 const customerNotificationsEnabledStorage = "ra-customer-notifications-enabled";
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function getStoredOrderKey(storageKey: string | null) {
+  if (!storageKey) return null;
+  return sessionStorage.getItem(storageKey) || localStorage.getItem(storageKey);
 }
 
 export default function StoreSuccess() {
@@ -31,6 +56,7 @@ export default function StoreSuccess() {
   const notificationPreferenceKey = Number.isSafeInteger(numericOrderId) && numericOrderId > 0
     ? `ra-order-notifications-enabled:${numericOrderId}`
     : null;
+  const storedOrderKey = getStoredOrderKey(notificationKeyStorage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(() =>
     Boolean(
       localStorage.getItem(customerNotificationsEnabledStorage) === "true"
@@ -47,6 +73,13 @@ export default function StoreSuccess() {
     queryKey: ["public-settings"],
     queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
   });
+  const { data: orderStatus, isLoading: orderStatusLoading, isError: orderStatusError } = useQuery<CustomerOrderStatus>({
+    queryKey: ["customer-order-status", numericOrderId],
+    queryFn: () => apiRequest<CustomerOrderStatus>(`/api/customer-order-status?orderId=${numericOrderId}&customerNotificationKey=${encodeURIComponent(getStoredOrderKey(notificationKeyStorage) ?? "")}`),
+    enabled: Boolean(storedOrderKey && Number.isSafeInteger(numericOrderId) && numericOrderId > 0),
+    refetchInterval: 15000,
+    retry: false,
+  });
 
   const pixKey = settings?.pixKey?.trim() ?? "";
   const whatsapp = settings?.whatsappNumber?.trim() ?? "";
@@ -62,12 +95,12 @@ export default function StoreSuccess() {
       || !Number.isSafeInteger(numericOrderId)
       || numericOrderId <= 0
       || syncedOrderIdRef.current === numericOrderId
-      || !sessionStorage.getItem(notificationKeyStorage)
+    || !getStoredOrderKey(notificationKeyStorage)
     ) {
       return;
     }
 
-    const customerNotificationKey = sessionStorage.getItem(notificationKeyStorage);
+    const customerNotificationKey = getStoredOrderKey(notificationKeyStorage);
     if (!customerNotificationKey) return;
 
     syncedOrderIdRef.current = numericOrderId;
@@ -96,7 +129,7 @@ export default function StoreSuccess() {
 
   async function activateOrderNotifications() {
     if (!notificationKeyStorage || !notificationPreferenceKey) return;
-    const customerNotificationKey = sessionStorage.getItem(notificationKeyStorage);
+    const customerNotificationKey = getStoredOrderKey(notificationKeyStorage);
     if (!customerNotificationKey) {
       toast({ title: "Não foi possível validar este pedido", description: "Abra a confirmação no mesmo aparelho usado para fazer o pedido.", variant: "destructive" });
       return;
@@ -145,7 +178,31 @@ export default function StoreSuccess() {
         </p>
       )}
 
-      {notificationKeyStorage && sessionStorage.getItem(notificationKeyStorage) && (
+      {storedOrderKey && (
+        <div className="mb-6 rounded-lg border border-[#7B2E68]/15 bg-white p-4 text-left shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold text-foreground">Acompanhe seu pedido</h2>
+            {orderStatus && (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${orderStatus.status === "cancelled" ? "bg-red-100 text-red-700" : orderStatus.status === "delivered" ? "bg-green-100 text-green-700" : "bg-pink-100 text-[#7B2E68]"}`}>
+                {ORDER_STATUS_LABELS[orderStatus.status] ?? orderStatus.status}
+              </span>
+            )}
+          </div>
+          {orderStatusLoading && <p className="mt-2 text-sm text-muted-foreground">Consultando o status...</p>}
+          {orderStatusError && <p className="mt-2 text-sm text-muted-foreground">Não foi possível atualizar agora. Tente recarregar esta página.</p>}
+          {orderStatus && !orderStatusLoading && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {orderStatus.status === "delivered"
+                ? "Seu pedido foi entregue."
+                : orderStatus.status === "cancelled"
+                  ? "Este pedido foi cancelado. Fale conosco pelo WhatsApp se precisar de ajuda."
+                  : `Última atualização: ${new Date(orderStatus.updatedAt).toLocaleString("pt-BR")}.`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {notificationKeyStorage && storedOrderKey && (
         <div className="mb-6 rounded-lg border border-[#7B2E68]/15 bg-white p-4 text-left">
           <p className="text-sm text-muted-foreground">
             {notificationsEnabled

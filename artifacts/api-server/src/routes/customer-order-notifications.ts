@@ -13,6 +13,7 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const customerNotificationRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 12 });
+const customerOrderStatusRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 120 });
 const subscribeBody = z.object({
   orderId: z.number().int().positive(),
   customerNotificationKey: z.string().trim().min(32).max(128),
@@ -21,7 +22,15 @@ const subscribeBody = z.object({
 const unsubscribeBody = subscribeBody.omit({ token: true });
 
 async function findOrderForKey(orderId: number, key: string) {
-  const [order] = await db.select({ id: ordersTable.id, status: ordersTable.status, keyHash: ordersTable.customerNotificationKeyHash })
+  const [order] = await db.select({
+    id: ordersTable.id,
+    status: ordersTable.status,
+    paymentStatus: ordersTable.paymentStatus,
+    deliveryDate: ordersTable.deliveryDate,
+    deliveryTime: ordersTable.deliveryTime,
+    updatedAt: ordersTable.updatedAt,
+    keyHash: ordersTable.customerNotificationKeyHash,
+  })
     .from(ordersTable)
     .where(eq(ordersTable.id, orderId));
   if (!order?.keyHash) return null;
@@ -30,6 +39,26 @@ async function findOrderForKey(orderId: number, key: string) {
   if (providedHash.length !== storedHash.length || !timingSafeEqual(providedHash, storedHash)) return null;
   return order;
 }
+
+router.get("/customer-order-status", customerOrderStatusRateLimit, async (req, res): Promise<void> => {
+  const parsed = z.object({
+    orderId: z.coerce.number().int().positive(),
+    customerNotificationKey: z.string().trim().min(32).max(128),
+  }).safeParse(req.query);
+  if (!parsed.success) { res.status(400).json({ error: "Dados inválidos para consultar o pedido." }); return; }
+
+  const order = await findOrderForKey(parsed.data.orderId, parsed.data.customerNotificationKey);
+  if (!order) { res.status(404).json({ error: "Não foi possível validar este pedido." }); return; }
+
+  res.json({
+    id: order.id,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    deliveryDate: order.deliveryDate,
+    deliveryTime: order.deliveryTime,
+    updatedAt: order.updatedAt.toISOString(),
+  });
+});
 
 router.post("/customer-order-notifications", customerNotificationRateLimit, async (req, res): Promise<void> => {
   const parsed = subscribeBody.safeParse(req.body);

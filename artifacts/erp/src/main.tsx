@@ -14,14 +14,39 @@ function registerAppServiceWorker() {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
 
   let reloading = false;
+  let registration: ServiceWorkerRegistration | null = null;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (reloading) return;
     reloading = true;
     window.location.reload();
   });
 
+  const askWaitingWorkerToActivate = () => {
+    registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+  };
+
+  const checkForUpdate = () => {
+    void registration?.update().catch(() => undefined);
+  };
+
   void navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
-    .then((registration) => registration.update())
+    .then((nextRegistration) => {
+      registration = nextRegistration;
+      askWaitingWorkerToActivate();
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration?.installing;
+        if (!installingWorker) return;
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed") askWaitingWorkerToActivate();
+        });
+      });
+      checkForUpdate();
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkForUpdate();
+      });
+      window.addEventListener("focus", checkForUpdate);
+      window.setInterval(checkForUpdate, 5 * 60 * 1000);
+    })
     .catch(() => undefined);
 }
 

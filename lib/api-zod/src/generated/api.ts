@@ -15,6 +15,7 @@ export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
 
+
 /**
  * @summary Executive KPI summary
  */
@@ -596,6 +597,29 @@ export const UpdateOrderStatusResponse = zod.object({
 
 
 /**
+ * @summary Get a customer's order status with the order notification key
+ */
+export const getCustomerOrderStatusQueryCustomerNotificationKeyMin = 32;
+export const getCustomerOrderStatusQueryCustomerNotificationKeyMax = 128;
+
+
+
+export const GetCustomerOrderStatusQueryParams = zod.object({
+  "orderId": zod.coerce.number(),
+  "customerNotificationKey": zod.coerce.string().min(getCustomerOrderStatusQueryCustomerNotificationKeyMin).max(getCustomerOrderStatusQueryCustomerNotificationKeyMax)
+})
+
+export const GetCustomerOrderStatusResponse = zod.object({
+  "id": zod.number(),
+  "status": zod.enum(['new', 'awaiting_payment', 'paid', 'production', 'ready', 'out_for_delivery', 'delivered', 'cancelled']),
+  "paymentStatus": zod.enum(['pending', 'paid']),
+  "deliveryDate": zod.string().nullish(),
+  "deliveryTime": zod.string().nullish(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary List production orders (today's panel)
  */
 export const ListProductionOrdersQueryParams = zod.object({
@@ -1011,3 +1035,5 @@ export const GetDreResponse = zod.object({
   "netProfit": zod.number(),
   "cmvPercent": zod.number()
 })
+
+
