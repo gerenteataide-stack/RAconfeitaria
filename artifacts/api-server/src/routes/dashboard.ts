@@ -9,37 +9,42 @@ router.get("/dashboard/stats", requireAuth, requirePermission("dashboard"), asyn
   const today = new Date().toISOString().split("T")[0];
   const firstOfMonth = today.slice(0, 7) + "-01";
 
-  const [todayOrders] = await db
-    .select({ count: sql<number>`count(*)`, total: sql<number>`coalesce(sum(total::numeric), 0)` })
-    .from(ordersTable)
-    .where(and(sql`date(created_at) = ${today}`, sql`status != 'cancelled'`));
-
-  const [monthOrders] = await db
-    .select({ count: sql<number>`count(*)`, total: sql<number>`coalesce(sum(total::numeric), 0)` })
-    .from(ordersTable)
-    .where(and(sql`date(created_at) >= ${firstOfMonth}`, sql`status != 'cancelled'`));
+  const [todayOrders, monthOrders, products, lowStock, recurring] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)`, total: sql<number>`coalesce(sum(total::numeric), 0)` })
+      .from(ordersTable)
+      .where(and(sql`date(created_at) = ${today}`, sql`status != 'cancelled'`)),
+    db
+      .select({ count: sql<number>`count(*)`, total: sql<number>`coalesce(sum(total::numeric), 0)` })
+      .from(ordersTable)
+      .where(and(sql`date(created_at) >= ${firstOfMonth}`, sql`status != 'cancelled'`)),
+    db.select({ price: productsTable.price, cost: productsTable.cost }).from(productsTable),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(stockItemsTable)
+      .where(sql`quantity::numeric <= min_stock::numeric`),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(customersTable)
+      .where(sql`total_orders > 1`),
+  ]).then(([todayResult, monthResult, productsResult, lowStockResult, recurringResult]) => [
+    todayResult[0],
+    monthResult[0],
+    productsResult,
+    lowStockResult[0],
+    recurringResult[0],
+  ] as const);
 
   // estimate net profit as 40% of revenue
   const netProfit = Number(monthOrders.total) * 0.4;
   const avgTicket = Number(monthOrders.count) > 0 ? Number(monthOrders.total) / Number(monthOrders.count) : 0;
 
   // CMV = average cost/price ratio across products
-  const products = await db.select({ price: productsTable.price, cost: productsTable.cost }).from(productsTable);
   const cmvProducts = products.filter((p) => p.cost && Number(p.price) > 0);
   const cmvPercent =
     cmvProducts.length > 0
       ? cmvProducts.reduce((acc, p) => acc + (Number(p.cost) / Number(p.price)) * 100, 0) / cmvProducts.length
       : 0;
-
-  const [lowStock] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(stockItemsTable)
-    .where(sql`quantity::numeric <= min_stock::numeric`);
-
-  const [recurring] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(customersTable)
-    .where(sql`total_orders > 1`);
 
   res.json({
     revenueToday: Number(todayOrders.total),

@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,7 +8,7 @@ import { StoreLayout } from "@/components/store-layout";
 import { CartProvider } from "@/contexts/cart";
 import { AuthProvider, useAuth } from "@/contexts/auth";
 
-import Dashboard from "@/pages/dashboard";
+const Dashboard = lazy(() => import("@/pages/dashboard"));
 import Orders from "@/pages/orders/index";
 import NewOrder from "@/pages/orders/new";
 import Customers from "@/pages/customers";
@@ -73,32 +73,34 @@ function AdminRouter() {
   if (!user) return <Redirect to="/login" />;
 
   return (
-    <AppLayout>
-      <Switch>
-        <Route path="/" component={() => <Redirect to="/dashboard" />} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/orders" component={Orders} />
-        <Route path="/orders/new" component={NewOrder} />
-        <Route path="/customers" component={Customers} />
-        <Route path="/products" component={Products} />
-        <Route path="/production" component={Production} />
-        <Route path="/stock" component={Stock} />
-        <Route path="/recipes" component={Recipes} />
-        <Route path="/admin/ingredientes" component={PricingIngredientsPage} />
-        <Route path="/admin/fichas-tecnicas" component={PricingTechnicalSheetsPage} />
-        <Route path="/admin/custos-gerais" component={PricingGeneralCostsPage} />
-        <Route path="/admin/precificacao" component={PricingSimulatorPage} />
-        <Route path="/financial" component={Financial} />
-        <Route path="/marketing" component={Marketing} />
-        <Route path="/delivery" component={Delivery} />
-        <Route path="/notifications" component={Notifications} />
-        <Route path="/costs" component={() => <Redirect to="/admin/custos-gerais" />} />
-        <Route path="/pricing" component={() => <Redirect to="/admin/precificacao" />} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/users" component={UsersPage} />
-        <Route component={NotFound} />
-      </Switch>
-    </AppLayout>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Abrindo painel...</div>}>
+      <AppLayout>
+        <Switch>
+          <Route path="/" component={() => <Redirect to="/dashboard" />} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/orders" component={Orders} />
+          <Route path="/orders/new" component={NewOrder} />
+          <Route path="/customers" component={Customers} />
+          <Route path="/products" component={Products} />
+          <Route path="/production" component={Production} />
+          <Route path="/stock" component={Stock} />
+          <Route path="/recipes" component={Recipes} />
+          <Route path="/admin/ingredientes" component={PricingIngredientsPage} />
+          <Route path="/admin/fichas-tecnicas" component={PricingTechnicalSheetsPage} />
+          <Route path="/admin/custos-gerais" component={PricingGeneralCostsPage} />
+          <Route path="/admin/precificacao" component={PricingSimulatorPage} />
+          <Route path="/financial" component={Financial} />
+          <Route path="/marketing" component={Marketing} />
+          <Route path="/delivery" component={Delivery} />
+          <Route path="/notifications" component={Notifications} />
+          <Route path="/costs" component={() => <Redirect to="/admin/custos-gerais" />} />
+          <Route path="/pricing" component={() => <Redirect to="/admin/precificacao" />} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/users" component={UsersPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </AppLayout>
+    </Suspense>
   );
 }
 

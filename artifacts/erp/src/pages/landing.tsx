@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { ArrowRight, Cake, Instagram, MapPin, MessageCircle, Sparkles } from "lucide-react";
 import { type Product, useListProducts } from "@workspace/api-client-react";
 import { apiRequest } from "@/lib/api";
@@ -37,11 +38,19 @@ function productHasPhoto(product: Product) {
 }
 
 export default function LandingPage() {
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
     queryFn: () => apiRequest<PublicSettings>("/api/settings/public"),
   });
   const { data: products = [], isLoading } = useListProducts();
+
+  useEffect(() => {
+    const orderId = window.localStorage.getItem("ra-last-order-id")?.trim() ?? "";
+    if (/^\d+$/.test(orderId) && window.localStorage.getItem(`ra-order-notification-key:${orderId}`)) {
+      setLastOrderId(orderId);
+    }
+  }, []);
 
   const businessName = settings?.businessName?.trim() || "Rochelle Ataide";
   const subtitle = settings?.businessSubtitle?.trim() || "Confeitaria artesanal";
@@ -98,6 +107,14 @@ export default function LandingPage() {
               >
                 Conhecer os produtos
               </a>
+              {lastOrderId && (
+                <a
+                  href={`/cardapio/sucesso?id=${encodeURIComponent(lastOrderId)}`}
+                  className="inline-flex min-h-12 max-w-full items-center rounded-md border border-[#7B2E68]/40 bg-[#FFF0F8] px-3 text-sm font-semibold text-[#7B2E68] transition-colors hover:bg-[#F9DDEC] sm:px-5"
+                >
+                  Acompanhar pedido
+                </a>
+              )}
               <PwaInstallPrompt />
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[#544A51]">

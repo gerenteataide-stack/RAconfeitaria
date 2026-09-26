@@ -211,6 +211,7 @@ export default function StoreCheckout() {
         sessionStorage.setItem(`ra-order-notification-key:${order.id}`, order.customerNotificationKey);
         localStorage.setItem(`ra-order-notification-key:${order.id}`, order.customerNotificationKey);
       }
+      localStorage.setItem("ra-last-order-id", String(order.id));
       clear();
       navigate(`/cardapio/sucesso?id=${order.id}&method=${paymentMethod}`);
     } catch {
