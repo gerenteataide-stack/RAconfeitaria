@@ -15,6 +15,7 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [iosNeedsHomeScreen, setIosNeedsHomeScreen] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia("(display-mode: standalone)").matches ||
@@ -25,19 +26,28 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
     }
     setIosNeedsHomeScreen(getPushEnvironment().requiresHomeScreenApp);
 
+    const isDesktop = window.matchMedia("(pointer: fine)").matches &&
+      !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallEvent(event as InstallPromptEvent);
+      setShowInstallHelp(false);
     }
 
     function handleAppInstalled() {
       setInstallEvent(null);
       setInstalled(true);
+      setShowInstallHelp(false);
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
+    const helpTimer = window.setTimeout(() => {
+      if (isDesktop && !standalone) setShowInstallHelp(true);
+    }, 1500);
     return () => {
+      window.clearTimeout(helpTimer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
@@ -56,7 +66,22 @@ export function PwaInstallPrompt({ compact = false }: PwaInstallPromptProps) {
     );
   }
 
-  if (installed || !installEvent) return null;
+  if (installed) return null;
+
+  if (!installEvent) {
+    if (!showInstallHelp) return null;
+    return (
+      <div
+        className={compact
+          ? "mt-3 rounded-md border border-[#7A8B68]/30 bg-white p-2 text-[11px] leading-4 text-muted-foreground"
+          : "rounded-lg border border-[#7A8B68]/30 bg-white p-3 text-sm leading-5 text-muted-foreground"}
+        role="note"
+      >
+        <p className="font-semibold text-[#46513C]">Instale o app no computador</p>
+        <p className="mt-1">No Chrome ou Edge, abra o menu do navegador e escolha “Instalar app” ou use o ícone de instalação ao lado do endereço.</p>
+      </div>
+    );
+  }
 
   async function installApp() {
     const currentInstallEvent = installEvent;

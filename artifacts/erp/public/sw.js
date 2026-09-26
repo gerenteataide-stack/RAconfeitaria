@@ -1,8 +1,8 @@
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js");
 
-const CACHE_NAME = "ra-confeitaria-v4";
-const APP_SHELL = ["/", "/cardapio", "/manifest.webmanifest", "/logo.png"];
+const CACHE_NAME = "ra-confeitaria-v5";
+const APP_SHELL = ["/", "/cardapio", "/manifest.webmanifest", "/app-icon-192.png", "/app-icon-512.png"];
 
 firebase.initializeApp({
   apiKey: "AIzaSyCg7dC0dr68hWERsItQu_-FDFz7YRK8jcM",
@@ -24,8 +24,8 @@ messaging.onBackgroundMessage((payload) => {
   const title = payload.data?.title || "Novo pedido recebido";
   return self.registration.showNotification(title, {
     body: payload.data?.body || "Um novo pedido está aguardando atendimento.",
-    icon: "/logo.png",
-    badge: "/logo.png",
+    icon: "/app-icon-192.png",
+    badge: "/app-icon-192.png",
     tag: payload.data?.tag || `pedido-${payload.data?.orderId || "novo"}`,
     data: { url: payload.data?.url || "/orders" },
   });

@@ -109,8 +109,8 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
           payload.data?.title || "Novo pedido recebido",
           {
             body: payload.data?.body || "Um novo pedido está aguardando atendimento.",
-            icon: "/logo.png",
-            badge: "/logo.png",
+            icon: "/app-icon-192.png",
+            badge: "/app-icon-192.png",
             tag: payload.data?.tag || `pedido-${payload.data?.orderId || "novo"}`,
             data: { url: payload.data?.url || "/orders" },
           },
